@@ -32,6 +32,26 @@ test('INFINITY respawns at four seconds and clears all movement/reload/camera/na
 test('INFINITY five minute score ties draw, unique kill leader wins',()=>{for(const tie of[false,true]){const a=arena('INFINITY');a.entities[4].kills=15;a.entities[1].kills=tie?15:14;a.roundEndsAt=0;a.checkRules();assert.equal(a.result.match,true);assert.equal(a.result.draw,tie);if(!tie)assert.equal(a.result.winner,a.entities[4].id);}});
 test('CAPTURE respawns at five seconds',()=>{const a=arena('CAPTURE'),p=a.player();a.damage(p,1000,a.entities[5]);advance(a,4.975);assert.equal(p.alive,false);advance(a,.05);assert.equal(p.alive,true);assert.equal(p.shield,50);});
 test('BOSS is exactly 1 vs 9 and resolves either side without a time limit',()=>{const a=arena('BOSS');assert.equal(a.roundEndsAt,Infinity);a.entities.slice(1).forEach(e=>{e.alive=false;});a.checkRules();assert.equal(a.result.winner,'BOSS');const b=arena('BOSS');b.damage(b.player(),4000,b.entities[1]);b.checkRules();assert.equal(b.result.winner,'HUNTERS');assert.equal(b.result.match,true);});
+test('boss reload advantage applies to every firearm, never hunters or a later team match',()=>{
+  const a=arena('BOSS'),p=a.player(),h=a.entities[1];
+  for(const w of C.WEAPONS.filter(w=>w.id!==2)){
+    for(const e of [p,h]){e.weapon=w.id;e.ammo[w.id]=0;e.reloadLeft=0;assert.equal(a.reload(e),true);assert.equal(e.reloadTotal,w.reload*(e===p?.75:1));assert.equal(e.reloadLeft,e.reloadTotal);}
+  }
+  p.weapon=2;p.reloadLeft=0;assert.equal(a.reload(p),false);
+  a.start('TEAM',C.MAPS[0]);const normal=a.player();normal.ammo[0]=0;a.reload(normal);assert.equal(normal.reloadLeft,2.1);assert.equal(normal.maxHp,100);assert.equal(normal.maxShield,50);
+});
+test('boss hunters keep tracking during firing pauses and resume their attack',()=>{
+  const a=arena('BOSS',openMap()),p=a.player(),h=a.entities[5],shots=[];
+  a.updateAI=C.Arena.prototype.updateAI;a.moveEntity=()=>{};
+  a.entities.forEach(e=>{e.alive=e===p||e===h;});Object.assign(p,{x:500,y:500});Object.assign(h,{x:220,y:500,angle:0});
+  a.onEvent=(type,data)=>{if(type==='fire'&&data.entity===h)shots.push(a.time);};
+  const random=Math.random;Math.random=()=>.5;try{advance(a,8);}finally{Math.random=random;}
+  assert.ok(shots.length>10&&shots.length<40,'Hunter must attack, with limited sustained fire');
+  assert.ok(shots[0]>=.45,'Initial acquisition gives the boss time to respond');
+  assert.ok(shots.at(-1)>7,'Hunter must resume after pauses, not become inactive');
+  assert.ok(shots.some((t,i)=>i>0&&t-shots[i-1]>=.6),'At least one recovery window');
+  assert.equal(h.ai.target,p.id);assert.equal(h.jumpZ,0);assert.equal(p.maxHp,2000);assert.equal(p.maxShield,1000);
+});
 test('capture accumulation pauses below two owned points and resumes at the old value',()=>{
   const a=arena('CAPTURE');a.entities.forEach(e=>{e.alive=false;});a.points[0].owner='BLUE';a.points[1].owner='BLUE';a.updateCapture(20);assert.equal(a.captureTime.BLUE,20);a.points[1].owner='RED';a.updateCapture(13);assert.equal(a.captureTime.BLUE,20);a.points[2].owner='BLUE';a.updateCapture(25);assert.equal(a.captureTime.BLUE,45);a.checkRules();assert.equal(a.result.winner,'BLUE');
 });
