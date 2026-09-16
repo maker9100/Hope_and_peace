@@ -8,6 +8,14 @@
   <title>CHEAT ARENA</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%23121512'/%3E%3Cpath d='M5 12V5h7m8 0h7v7M5 20v7h7m8 0h7v-7M11 16h10m-5-5v10' fill='none' stroke='%23d5fb4e' stroke-width='3'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
+  <style>
+    /* State visibility takes precedence over layout, touch and cached CSS. */
+    body:not([data-state="LOBBY"]) .lobby-only,
+    body:not([data-state="LOBBY"]) .lobby-shade,
+    body[data-state="LOBBY"] .game-only {
+      display: none !important;
+    }
+  </style>
   <script defer src="config.js"></script>
   <script defer src="core.js"></script>
   <script defer src="maps.js"></script>
