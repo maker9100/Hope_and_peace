@@ -4,7 +4,7 @@ for(const name of fs.readdirSync(dist).filter(n=>n.endsWith('.js'))){cp.execFile
 const html=fs.readFileSync(path.join(dist,'index.html'),'utf8'),game=fs.readFileSync(path.join(dist,'game.js'),'utf8');
 const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);assert.equal(ids.length,new Set(ids).size,'DOM ids must be unique');
 const declared=game.match(/const ids=\[([^\]]+)\]/)[1];for(const [,id]of declared.matchAll(/'([^']+)'/g))assert.ok(ids.includes(id),'Missing DOM ID: '+id);
-for(const [,ref]of html.matchAll(/(?:src|href)="([^"]+)"/g)){if(ref.startsWith('#')||/^[a-z]+:/i.test(ref))continue;assert.ok(fs.existsSync(path.join(dist,ref)),'Missing local asset: '+ref);}
+for(const [,ref]of html.matchAll(/(?:src|href)="([^"]+)"/g)){if(ref.startsWith('#')||/^[a-z]+:/i.test(ref))continue;assert.ok(fs.existsSync(path.join(dist,ref.split(/[?#]/)[0])),'Missing local asset: '+ref);}
 JSON.parse(fs.readFileSync(path.join(dist,'database.rules.json'),'utf8'));
 assert.ok(!/showToast\s*\(/.test(fs.readFileSync(path.join(dist,'core.js'),'utf8')+game),'No undefined showToast calls');
 assert.ok(!/style\.display/.test(game),'State-driven screen visibility required');
