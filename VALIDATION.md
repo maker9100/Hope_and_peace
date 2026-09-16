@@ -1,5 +1,12 @@
 # CHEAT ARENA 검증 기록
 
+## 2026-09-16 화면 겹침 수정
+
+- GitHub에 올라간 `dist/index.html`과 `dist/style.css`가 수정 전 로컬 파일과 같은 내용임을 Git blob SHA로 확인했다.
+- ID 기반 로비 레이아웃과 모바일 조작 표시 규칙이 기존 상태 숨김 규칙보다 우선하는 CSS 문제를 수정했다.
+- `dist/index.html`에 상태 전용 숨김 규칙을 추가했다. PLAYING / ROUND_END / MATCH_END에는 로비를 숨기고 LOBBY에는 HUD와 모바일 조작을 숨긴다. 기존 CSS가 캐시되어 있어도 적용된다.
+- 수정 후 JavaScript 7개 문법 검사와 핵심 DOM 참조·자산 경로 검사를 통과했다. 실제 iPad에서 수정본을 실행한 검증은 아직 하지 않았다.
+
 ## 실행한 검사
 
 - JavaScript 7개 파일에 `node --check`: 통과.
