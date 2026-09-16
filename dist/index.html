@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#121512">
+  <meta name="description" content="CHEAT ARENA — 공식 치트로 싸우는 Canvas Raycaster FPS. 5개 AI 모드, 4개 맵, PC와 모바일 지원.">
+  <title>CHEAT ARENA</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%23121512'/%3E%3Cpath d='M5 12V5h7m8 0h7v7M5 20v7h7m8 0h7v-7M11 16h10m-5-5v10' fill='none' stroke='%23d5fb4e' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <script defer src="config.js"></script>
+  <script defer src="core.js"></script>
+  <script defer src="maps.js"></script>
+  <script defer src="audio.js"></script>
+  <script defer src="render.js"></script>
+  <script defer src="network.js"></script>
+  <script defer src="game.js"></script>
+</head>
+<body data-state="LOBBY" data-panel="home">
+  <canvas id="world" aria-label="CHEAT ARENA FPS 게임 화면"></canvas>
+  <div class="lobby-shade"></div>
+  <header class="brandbar lobby-only"><a class="brand" href="#" aria-label="CHEAT ARENA 로비"><span class="brand-symbol">⌖</span> CHEAT ARENA</a><span class="build">CANVAS COMBAT SYSTEM <b>01.0</b></span><button id="sound" class="quiet" aria-pressed="true">SOUND ON</button></header>
+  <main id="lobby" class="lobby-only">
+    <section class="identity">
+      <div class="eyebrow"><span></span> ALL ADVANTAGES AUTHORIZED</div>
+      <h1>CHEAT<br><em>ARENA</em><span class="title-dot">®</span></h1>
+      <p class="intro">치트가 곧 전술이다.</p>
+      <div class="ability-labels"><span>AIM ASSIST</span><span>ESP VISION</span><span>NO RECOIL</span></div>
+      <div class="field-report"><span>ARENA / <b id="attract-map">DEPOT</b></span><span>FOV / 103°</span><span>CAPACITY / 10</span></div>
+    </section>
+    <section class="menu-shell">
+      <div class="panel-head"><span id="panel-label">DEPLOYMENT</span><span class="small-code">CA // 01</span></div>
+      <div class="panel" data-view="home">
+        <label class="nickname">CALLSIGN<input id="nickname" maxlength="18" value="PLAYER" autocomplete="off" spellcheck="false" aria-label="닉네임"></label>
+        <button id="ai-menu" class="deploy-card primary"><span class="card-number">01</span><span><strong>AI 전투</strong><small>5 GAME MODES · 9 AI OPERATORS</small></span><span class="card-arrow">↗</span></button>
+        <button id="online-menu" class="deploy-card"><span class="card-number">02</span><span><strong>ONLINE</strong><small>TEAM ELIMINATION · UP TO 10</small></span><span class="card-arrow">↗</span></button>
+        <p class="menu-note">모든 치트는 게임에서 제공하는 공식 전투 기능이다.</p>
+      </div>
+      <div class="panel" data-view="modes"><div class="subhead"><button class="back quiet">← BACK</button><span>SELECT YOUR RULES</span></div><div id="mode-cards" class="mode-cards"></div></div>
+      <div class="panel" data-view="online">
+        <div class="subhead"><button class="back quiet">← BACK</button><span>TEAM ELIMINATION ONLY</span></div>
+        <div id="online-connect"><p class="online-copy">방을 만들거나 6자리 코드로 참가한다.<br>2명 이상 모이면 호스트가 시작할 수 있다.</p><button id="create-room" class="solid">CREATE ROOM</button><div class="join-line"><input id="room-code" maxlength="6" inputmode="numeric" placeholder="6자리 코드" aria-label="방 코드"><button id="join-room">JOIN</button></div></div>
+        <div id="room" hidden><div class="room-title">ROOM <strong id="room-id">------</strong><span id="room-capacity">0 / 10</span></div><div id="room-roster"></div><button id="host-start" class="solid">START MATCH</button><button id="leave-room" class="quiet">LEAVE ROOM</button></div>
+        <p id="online-status" role="status" class="status-text"></p>
+        <details id="firebase-settings"><summary>Firebase 연결 설정</summary><p>Firebase Web 앱의 공개 설정 JSON을 입력한다. Anonymous Auth와 Realtime Database가 필요하다.</p><textarea id="firebase-config" placeholder='{"apiKey":"…","authDomain":"…","databaseURL":"…","projectId":"…","appId":"…"}' aria-label="Firebase 공개 설정 JSON" spellcheck="false"></textarea><button id="save-config">SAVE CONFIG</button><a href="README.html" target="_blank" rel="noopener">설정 안내 ↗</a></details>
+      </div>
+    </section>
+  </main>
+  <footer class="lobby-only lobby-footer"><button id="controls-open" class="quiet">⌨ 조작 방법</button><span>4 ARENAS <i>/</i> 6 WEAPONS <i>/</i> ZERO FAIR FIGHTS</span><span class="tech-label">2.5D RAYCASTER</span></footer>
+  <div id="hud" class="game-only">
+    <div class="mini-block"><div class="map-label"><span id="map-name">DEPOT</span><span id="area-name">BLUE ENTRY</span></div><canvas id="minimap" width="180" height="162" aria-label="전술 미니맵"></canvas><span id="mode-name" class="mini-caption">TEAM ELIMINATION</span></div>
+    <div class="score-block"><div id="score-top"></div><div id="timer">02:00</div><div id="alive-line"></div><div id="capture-hud"></div></div>
+    <div class="top-actions"><button id="game-sound" aria-label="소리 켜기/끄기">♫</button><button id="score-open">TAB</button><button id="exit-match">LOBBY ↗</button></div>
+    <div id="kill-feed"></div>
+    <div id="crosshair"><i></i><i></i><i></i><i></i><span></span></div><div id="hit-marker">×</div>
+    <div id="combat-message"></div><div id="protection"></div>
+    <div id="spectator"><span id="spectator-label"></span><button id="next-spectator">NEXT OPERATOR →</button></div>
+    <div id="capture-local"></div>
+    <div class="vitals"><div class="operator-tag" id="operator-name">PLAYER</div><div class="hp-row"><span class="vital-icon">+</span><strong id="hp-value">100</strong><small id="hp-max">/ 100</small><div class="vital-meter"><i id="hp-bar"></i></div></div><div class="shield-row"><span class="vital-icon">◇</span><strong id="shield-value">50</strong><small id="shield-max">/ 50</small><div class="vital-meter"><i id="shield-bar"></i></div></div></div>
+    <div class="cheat-bar"><button data-cheat="aim"><kbd>F1</kbd>AIM<span>OFF</span></button><button data-cheat="esp"><kbd>F2</kbd>ESP<span>OFF</span></button><button data-cheat="noRecoil"><kbd>F3</kbd>NO RECOIL<span>OFF</span></button></div>
+    <div class="ammo-block"><div id="weapon-name">ASSAULT RIFLE</div><div><strong id="ammo-value">30</strong><small id="ammo-reserve">/ ∞</small></div><div id="reload-track"><i></i></div><span id="reload-label">FULL AUTO</span></div>
+    <div id="weapon-slots" class="weapon-slots"></div>
+    <div id="pc-hint">WASD MOVE <span>·</span> R RELOAD <span>·</span> SPACE JUMP <span>·</span> C CROUCH</div>
+    <button id="resume" hidden>클릭하여 시점 잠금 · ESC로 해제</button>
+  </div>
+  <div id="touch-controls" class="game-only"><div id="joystick"><div id="stick"></div></div><button id="touch-fire" aria-label="발사">⌖<small>FIRE</small></button><button id="touch-reload">R</button><button id="touch-jump">JUMP</button><button id="touch-crouch" aria-pressed="false">CROUCH</button></div>
+  <section id="result" class="result-screen"><div class="result-card"><span id="result-eyebrow">ROUND COMPLETE</span><h2 id="result-title">BLUE WINS</h2><p id="result-detail"></p><div id="result-scores"></div><p id="result-countdown"></p><button id="result-lobby" class="solid">RETURN TO LOBBY</button></div></section>
+  <dialog id="controls-dialog"><button id="controls-close" class="dialog-close" aria-label="닫기">×</button><span class="eyebrow">OPERATOR MANUAL</span><h2>조작 방법</h2><div class="controls-grid"><div><h3>PC</h3><p>WASD — 이동<br>마우스 — 좌우 / 위아래 시점<br>좌클릭 — 발사 · 1–6 — 무기<br>R — 재장전 · Space — 점프<br>Ctrl / C — 앉기<br>F1 — AIM · F2 — ESP · F3 — NO RECOIL<br>Tab — 순위표 · Esc — 시점 잠금 해제</p></div><div><h3>MOBILE</h3><p>왼쪽 조이스틱 — 이동<br>화면 드래그 — 시점<br>짧게 탭 — 단발 공격<br>길게 누르기 — AR / MAC 연사<br>FIRE 버튼 — 발사<br>하단 무기 버튼 — 교체<br>가로 화면을 권장한다.</p></div></div><p>AIM은 부드럽게 조준을 보조한다. ESP는 적의 위치와 HP / Shield를 보여준다. NO RECOIL은 반동을 제거한다. 경기 종료 시 모두 OFF로 초기화된다.</p></dialog>
+  <dialog id="score-dialog"><button id="score-close" class="dialog-close" aria-label="닫기">×</button><span class="eyebrow">LIVE STANDINGS</span><h2>OPERATORS</h2><div id="score-table"></div></dialog>
+  <div id="notification" role="status"></div>
+  <noscript>CHEAT ARENA를 실행하려면 JavaScript가 필요하다.</noscript>
+</body>
+</html>
