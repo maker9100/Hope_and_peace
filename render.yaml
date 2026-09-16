@@ -1,0 +1,17 @@
+# Render hosts the static game. Firebase handles multiplayer state and presence.
+services:
+  - type: web
+    name: cheat-arena
+    runtime: static
+    buildCommand: node scripts/build-render.cjs
+    staticPublishPath: ./dist
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
