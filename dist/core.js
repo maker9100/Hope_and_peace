@@ -26,6 +26,8 @@
     {name:'SUPPRESSOR',weapon:5,range:440,aggression:.64,skill:.62},
     {name:'SKIRMISHER',weapon:1,range:280,aggression:.72,skill:.76}
   ];
+  // Boss-only pacing. Damage, max health/shield, pickups and other modes stay shared.
+  const BOSS_BALANCE = Object.freeze({reloadScale:.75,hunterReactionDelay:.30,hunterAimErrorScale:1.6,burstMin:.55,burstJitter:.25,pauseMin:.65,pauseJitter:.35});
   const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
   const wrap=a=>Math.atan2(Math.sin(a),Math.cos(a));
   const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -101,7 +103,7 @@
       kills:0,deaths:0,wins:0,weapon:isPlayer?0:role.weapon,ammo:WEAPONS.map(w=>w.mag),cooldown:0,reloadLeft:0,reloadTotal:0,
       jumpZ:0,jumpV:0,crouching:false,crouchBlend:0,landingKick:0,vx:0,vy:0,walkPhase:0,moveSpeed:0,
       lastDamage:-100,attackerId:null,attackerAt:-100,spawnProtectionUntil:0,respawnAt:0,fireFlash:0,weaponKick:0,shotSerial:0,
-      ai:{path:[],pathAt:0,thinkAt:0,target:null,goal:null,lastX:0,lastY:0,stuck:0,strafe:index%2?1:-1,burst:0,reactionUntil:0}};
+      ai:{path:[],pathAt:0,thinkAt:0,target:null,goal:null,lastX:0,lastY:0,stuck:0,strafe:index%2?1:-1,burstUntil:0,nextBurstAt:0,reactionUntil:0}};
   }
   class Arena {
     constructor(onEvent=()=>{}){
@@ -140,7 +142,7 @@
         hp:e.maxHp,shield:e.maxShield,alive:true,ammo:WEAPONS.map(w=>w.mag),cooldown:0,reloadLeft:0,reloadTotal:0,
         jumpZ:0,jumpV:0,crouching:false,crouchBlend:0,landingKick:0,vx:0,vy:0,walkPhase:0,moveSpeed:0,
         lastDamage:this.time-100,attackerId:null,attackerAt:-100,spawnProtectionUntil:this.time+protection,respawnAt:0,fireFlash:0,weaponKick:0});
-      e.ai={path:[],pathAt:0,thinkAt:0,target:null,goal:null,lastX:e.x,lastY:e.y,stuck:0,strafe:e.index%2?1:-1,burst:0,reactionUntil:0};
+      e.ai={path:[],pathAt:0,thinkAt:0,target:null,goal:null,lastX:e.x,lastY:e.y,stuck:0,strafe:e.index%2?1:-1,burstUntil:0,nextBurstAt:0,reactionUntil:0};
       if(e.isPlayer)this.spectatorId=null;
     }
     safeSpawn(e){
@@ -154,7 +156,7 @@
       return pool[Math.floor(Math.random()*pool.length)].p;
     }
     selectWeapon(e,id){if(!WEAPONS[id]||!e.alive)return;e.weapon=id;e.reloadLeft=0;e.reloadTotal=0;e.weaponKick=0;e.cooldown=Math.max(e.cooldown,.14);}
-    reload(e){const w=WEAPONS[e.weapon];if(!e.alive||e.weapon===2||e.reloadLeft>0||e.ammo[e.weapon]>=w.mag)return false;e.reloadLeft=w.reload;e.reloadTotal=w.reload;this.emit('reload',{entity:e,weapon:w});return true;}
+    reload(e){const w=WEAPONS[e.weapon];if(!e.alive||e.weapon===2||e.reloadLeft>0||e.ammo[e.weapon]>=w.mag)return false;const duration=w.reload*(!this.online&&this.mode==='BOSS'&&e.isPlayer?BOSS_BALANCE.reloadScale:1);e.reloadLeft=duration;e.reloadTotal=duration;this.emit('reload',{entity:e,weapon:w});return true;}
     jump(e){if(!e?.alive||e.jumpZ>.05||e.jumpV!==0||e.crouching)return;e.jumpV=255;}
     height(e){return 70-24*e.crouchBlend;}
     eye(e){return 52-22*e.crouchBlend+e.jumpZ-e.landingKick;}
@@ -198,8 +200,19 @@
       e.cameraPitch=clamp(e.cameraPitch+(p-e.cameraPitch)*strength*.55,-1.12,1.12);
     }
     moveEntity(e,dx,dy,dt){const ox=e.x,oy=e.y;moveCircle(this.map,e,dx,dy);const d=Math.hypot(e.x-ox,e.y-oy);e.moveSpeed=d/Math.max(dt,.001);e.walkPhase+=d*.037;}
-    updateAI(e,dt){
+    hunterFireReady(e){
+      if(this.online||this.mode!=='BOSS'||e.isPlayer||e.team!=='HUNTERS'||e.weapon===2)return true;
       const ai=e.ai;
+      if(ai.burstUntil>0&&this.time>=ai.burstUntil){
+        ai.nextBurstAt=ai.burstUntil+BOSS_BALANCE.pauseMin+Math.random()*BOSS_BALANCE.pauseJitter;
+        ai.burstUntil=0;
+      }
+      if(this.time<ai.nextBurstAt)return false;
+      if(ai.burstUntil===0)ai.burstUntil=this.time+BOSS_BALANCE.burstMin+Math.random()*BOSS_BALANCE.burstJitter;
+      return true;
+    }
+    updateAI(e,dt){
+      const ai=e.ai,hunter=!this.online&&this.mode==='BOSS'&&e.team==='HUNTERS';
       if(this.time>=ai.thinkAt){
         ai.thinkAt=this.time+.12+Math.random()*.05;
         const enemies=this.entities.filter(t=>t.alive&&enemy(e,t,this.mode));
@@ -207,7 +220,7 @@
         const recent=visible.find(t=>t.id===e.attackerId&&this.time-e.attackerAt<5);
         visible.sort((a,b)=>dist(e,a)-dist(e,b));
         const seen=recent||visible[0];
-        if(seen&&ai.target!==seen.id)ai.reactionUntil=this.time+.10+(1-e.role.skill)*.28;
+        if(seen&&ai.target!==seen.id)ai.reactionUntil=this.time+.10+(1-e.role.skill)*.28+(hunter?BOSS_BALANCE.hunterReactionDelay:0);
         ai.target=seen?.id||null;
         let goal=null;
         if(e.hp<e.maxHp*.4||e.shield<e.maxShield*.25){
@@ -236,7 +249,7 @@
         const approach=retreat||close?-1:far?e.role.aggression:0;
         mx=Math.cos(desired)*approach+Math.cos(desired+Math.PI/2)*ai.strafe*.55;
         my=Math.sin(desired)*approach+Math.sin(desired+Math.PI/2)*ai.strafe*.55;
-        if(this.time>=ai.reactionUntil&&Math.abs(da)<.15&&e.cooldown<=0){const error=(1-e.role.skill)*.105;this.fire(e,e.angle+(Math.random()-.5)*error,e.cameraPitch+(Math.random()-.5)*error*.4);}
+        if(this.time>=ai.reactionUntil&&Math.abs(da)<.15&&e.cooldown<=0&&e.reloadLeft<=0&&this.hunterFireReady(e)){const error=(1-e.role.skill)*.105*(hunter?BOSS_BALANCE.hunterAimErrorScale:1);this.fire(e,e.angle+(Math.random()-.5)*error,e.cameraPitch+(Math.random()-.5)*error*.4);}
         e.crouching=e.role.name==='MARKSMAN'&&d>500&&!retreat;
       }else{
         e.crouching=false;
@@ -366,5 +379,5 @@
     }
     toLobby(){this.cheats={aim:false,esp:false,noRecoil:false};this.spectatorId=null;this.projectiles=[];this.online=false;this.setState(MATCH_STATE.LOBBY);this.emit('lobby');}
   }
-  Object.assign(CA,{TILE,TAU,MATCH_STATE,MODES,WEAPONS,ROLES,clamp,wrap,dist,mix,enemy,wallAt,canStand,raycast,los,segmentCircle,moveCircle,pathfind,createEntity,Arena});
+  Object.assign(CA,{TILE,TAU,MATCH_STATE,MODES,WEAPONS,ROLES,BOSS_BALANCE,clamp,wrap,dist,mix,enemy,wallAt,canStand,raycast,los,segmentCircle,moveCircle,pathfind,createEntity,Arena});
 })(typeof window!=='undefined'?window:globalThis);

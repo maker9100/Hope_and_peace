@@ -7,7 +7,7 @@
   <meta name="description" content="CHEAT ARENA — 공식 치트로 싸우는 Canvas Raycaster FPS. 5개 AI 모드, 4개 맵, PC와 모바일 지원.">
   <title>CHEAT ARENA</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%23121512'/%3E%3Cpath d='M5 12V5h7m8 0h7v7M5 20v7h7m8 0h7v-7M11 16h10m-5-5v10' fill='none' stroke='%23d5fb4e' stroke-width='3'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=0.1.2">
   <style>
     /* State visibility takes precedence over layout, touch and cached CSS. */
     body:not([data-state="LOBBY"]) .lobby-only,
@@ -16,18 +16,18 @@
       display: none !important;
     }
   </style>
-  <script defer src="config.js"></script>
-  <script defer src="core.js"></script>
-  <script defer src="maps.js"></script>
-  <script defer src="audio.js"></script>
-  <script defer src="render.js"></script>
-  <script defer src="network.js"></script>
-  <script defer src="game.js"></script>
+  <script defer src="config.js?v=0.1.2"></script>
+  <script defer src="core.js?v=0.1.2"></script>
+  <script defer src="maps.js?v=0.1.2"></script>
+  <script defer src="audio.js?v=0.1.2"></script>
+  <script defer src="render.js?v=0.1.2"></script>
+  <script defer src="network.js?v=0.1.2"></script>
+  <script defer src="game.js?v=0.1.2"></script>
 </head>
 <body data-state="LOBBY" data-panel="home">
   <canvas id="world" aria-label="CHEAT ARENA FPS 게임 화면"></canvas>
   <div class="lobby-shade"></div>
-  <header class="brandbar lobby-only"><a class="brand" href="#" aria-label="CHEAT ARENA 로비"><span class="brand-symbol">⌖</span> CHEAT ARENA</a><span class="build">CANVAS COMBAT SYSTEM <b>01.0</b></span><button id="sound" class="quiet" aria-pressed="true">SOUND ON</button></header>
+  <header class="brandbar lobby-only"><div class="brand-group"><a class="brand" href="#" aria-label="CHEAT ARENA 로비"><span class="brand-symbol">⌖</span> CHEAT ARENA</a><button id="credits-open" class="quiet credits-trigger" aria-haspopup="dialog" aria-controls="credits-dialog">크레딧</button></div><span class="build">CANVAS COMBAT SYSTEM <b>V0.1.2</b></span><button id="sound" class="quiet" aria-pressed="true">SOUND ON</button></header>
   <main id="lobby" class="lobby-only">
     <section class="identity">
       <div class="eyebrow"><span></span> ALL ADVANTAGES AUTHORIZED</div>
@@ -50,7 +50,6 @@
         <div id="online-connect"><p class="online-copy">방을 만들거나 6자리 코드로 참가한다.<br>2명 이상 모이면 호스트가 시작할 수 있다.</p><button id="create-room" class="solid">CREATE ROOM</button><div class="join-line"><input id="room-code" maxlength="6" inputmode="numeric" placeholder="6자리 코드" aria-label="방 코드"><button id="join-room">JOIN</button></div></div>
         <div id="room" hidden><div class="room-title">ROOM <strong id="room-id">------</strong><span id="room-capacity">0 / 10</span></div><div id="room-roster"></div><button id="host-start" class="solid">START MATCH</button><button id="leave-room" class="quiet">LEAVE ROOM</button></div>
         <p id="online-status" role="status" class="status-text"></p>
-        <details id="firebase-settings"><summary>Firebase 연결 설정</summary><p>Firebase Web 앱의 공개 설정 JSON을 입력한다. Anonymous Auth와 Realtime Database가 필요하다.</p><textarea id="firebase-config" placeholder='{"apiKey":"…","authDomain":"…","databaseURL":"…","projectId":"…","appId":"…"}' aria-label="Firebase 공개 설정 JSON" spellcheck="false"></textarea><button id="save-config">SAVE CONFIG</button><a href="README.html" target="_blank" rel="noopener">설정 안내 ↗</a></details>
       </div>
     </section>
   </main>
@@ -75,6 +74,7 @@
   <section id="result" class="result-screen"><div class="result-card"><span id="result-eyebrow">ROUND COMPLETE</span><h2 id="result-title">BLUE WINS</h2><p id="result-detail"></p><div id="result-scores"></div><p id="result-countdown"></p><button id="result-lobby" class="solid">RETURN TO LOBBY</button></div></section>
   <dialog id="controls-dialog"><button id="controls-close" class="dialog-close" aria-label="닫기">×</button><span class="eyebrow">OPERATOR MANUAL</span><h2>조작 방법</h2><div class="controls-grid"><div><h3>PC</h3><p>WASD — 이동<br>마우스 — 좌우 / 위아래 시점<br>좌클릭 — 발사 · 1–6 — 무기<br>R — 재장전 · Space — 점프<br>Ctrl / C — 앉기<br>F1 — AIM · F2 — ESP · F3 — NO RECOIL<br>Tab — 순위표 · Esc — 시점 잠금 해제</p></div><div><h3>MOBILE</h3><p>왼쪽 조이스틱 — 이동<br>화면 드래그 — 시점<br>짧게 탭 — 단발 공격<br>길게 누르기 — AR / MAC 연사<br>FIRE 버튼 — 발사<br>하단 무기 버튼 — 교체<br>가로 화면을 권장한다.</p></div></div><p>AIM은 부드럽게 조준을 보조한다. ESP는 적의 위치와 HP / Shield를 보여준다. NO RECOIL은 반동을 제거한다. 경기 종료 시 모두 OFF로 초기화된다.</p></dialog>
   <dialog id="score-dialog"><button id="score-close" class="dialog-close" aria-label="닫기">×</button><span class="eyebrow">LIVE STANDINGS</span><h2>OPERATORS</h2><div id="score-table"></div></dialog>
+  <dialog id="credits-dialog" aria-labelledby="credits-title"><button id="credits-close" class="dialog-close" aria-label="크레딧 닫기">×</button><span class="eyebrow">CREDITS</span><h2 id="credits-title">CHEAT ARENA</h2><div class="credits-copy"><p>기획:10628 황정욱</p><p>개발:11001 강동원,GPT 6 Astra</p></div></dialog>
   <div id="notification" role="status"></div>
   <noscript>CHEAT ARENA를 실행하려면 JavaScript가 필요하다.</noscript>
 </body>
