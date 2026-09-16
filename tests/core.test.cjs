@@ -3,7 +3,7 @@ const test=require('node:test'),assert=require('node:assert/strict');
 require('../dist/core.js');require('../dist/maps.js');require('../dist/network.js');const C=globalThis.CA;
 function arena(mode='TEAM',map=C.MAPS[0]){const a=new C.Arena();a.start(mode,map);a.updateAI=()=>{};return a;}
 function advance(a,seconds,input={}){for(let t=0;t<seconds-1e-8;t+=.025)a.tick(Math.min(.025,seconds-t),input);}
-function openMap(){return {...C.MAPS[0],grid:Array.from({length:27},(_,y)=>Array.from({length:30},(_,x)=>!x||!y||x===29||y===26?1:0))};}
+function openMap(){return {...C.MAPS[0],landmarkParts:[],landmarks:[],grid:Array.from({length:27},(_,y)=>Array.from({length:30},(_,x)=>!x||!y||x===29||y===26?1:0))};}
 function shootingArena(){const a=arena('TEAM',openMap());a.checkRules=()=>{};const p=a.player(),t=a.entities[5];p.x=224;p.y=224;p.angle=0;t.x=340;t.y=224;for(const e of a.entities)if(e!==p&&e!==t)e.alive=false;return {a,p,t};}
 
 test('all four authored maps have reachable, non-overlapping distributed spawn layouts',()=>{
@@ -81,5 +81,101 @@ test('Firebase adapter sends raw damage without changing remote HP/shield',()=>{
 test('Firebase config accepts only public Web config and rejects service accounts',()=>{const cfg={apiKey:'public',authDomain:'test.firebaseapp.com',databaseURL:'https://test-default-rtdb.firebaseio.com',projectId:'test',appId:'test-app'};assert.equal(C.FirebaseArena.validateConfig(cfg).projectId,'test');assert.throws(()=>C.FirebaseArena.validateConfig({...cfg,private_key:'NEVER_STORE'}));assert.throws(()=>C.FirebaseArena.validateConfig({...cfg,databaseURL:'https://example.com'}));});
 test('victim-side damage handling applies shield first and deduplicates network events (mock transport)',async()=>{
   const a=arena(),p=a.player(),enemy=a.entities[5];a.online=true;enemy.isRemote=true;const writes=[],net=new C.FirebaseArena(a,{status(){},notify(){},roomChanged(){}});net.code='123456';net.uid=p.id;net.members[enemy.id]={};net.shared={round:1,matchId:'test',phase:'PLAYING'};net.connected=true;net.db={};net.sdk={ref:(_db,path)=>path,set:async(ref,v)=>{writes.push([ref,v]);},remove:async()=>{},serverTimestamp:()=>Date.now()};
-  const event={raw:26,weapon:'AR',attacker:enemy.id,round:1,matchId:'test',at:Date.now()};await net.receiveDamage('event1',event);assert.equal(p.hp,100);assert.equal(p.shield,24);await net.receiveDamage('event1',event);assert.equal(p.shield,24);assert.ok(writes.some(([path,v])=>path.includes('/acks/')&&v.shield===26));
+  const event={life:0,raw:26,weapon:'AR',attacker:enemy.id,round:1,matchId:'test',at:Date.now()};await net.receiveDamage('event1',event);assert.equal(p.hp,100);assert.equal(p.shield,24);await net.receiveDamage('event1',event);assert.equal(p.shield,24);assert.ok(writes.some(([path,v])=>path.includes('/acks/')&&v.shield===26));
+});
+
+
+test('all six weapons stop at a thin landmark in every local mode',()=>{
+  for(const mode of Object.keys(C.MODES))for(const w of C.WEAPONS){
+    const a=arena(mode,openMap()),p=a.player(),t=a.entities[5];
+    a.entities.forEach(e=>e.alive=e===p||e===t);Object.assign(p,{x:224,y:224,angle:0,weapon:w.id});Object.assign(t,{x:294,y:224});
+    a.map.landmarkParts=[{x0:251,x1:258,y0:200,y1:248,z0:0,z1:120}];
+    assert.equal(a.fire(p,0,0),true);a.updateProjectiles(.2);
+    assert.equal(t.hp,100,mode+' '+w.name);assert.equal(t.shield,50,mode+' '+w.name);assert.equal(a.projectiles.length,0);
+  }
+});
+test('blocking works from either side and does not send online raw damage',()=>{
+  for(const reverse of [false,true]){
+    const {a,p,t}=shootingArena();a.online=true;t.isRemote=true;p.x=reverse?340:224;t.x=reverse?224:340;
+    a.map.landmarkParts=[{x0:275,x1:278,y0:195,y1:255,z0:0,z1:100}];
+    let sent=false;a.onEvent=type=>{if(type==='rawDamage')sent=true;};a.fire(p,reverse?Math.PI:0,0);assert.equal(sent,false);
+  }
+});
+test('finite cover blocks low shots but permits shots above its top',()=>{
+  const map=openMap();map.landmarkParts=[{x0:260,x1:300,y0:180,y1:260,z0:0,z1:20}];
+  for(const z of [10,50])assert.equal(C.traceScene(map,{x:224,y:224,z},{x:350,y:224,z}).hit,z===10);
+  assert.ok(C.traceScene(map,{x:224,y:224,z:50},{x:350,y:224,z:-20}).hit);
+  assert.equal(C.los(map,{x:224,y:224},{x:350,y:224}),true);
+});
+test('authored gate and crane passages are open; their supports and beams are solid',()=>{
+  for(const source of [C.MAPS[0],C.MAPS[1]]){
+    const l=source.landmarks.find(l=>['crane','gate'].includes(l.type)),map=openMap();map.landmarkParts=source.landmarkParts.filter(b=>b.landmark===l.type);
+    const from={x:l.x,y:l.y-100,z:49},to={x:l.x,y:l.y+100,z:49};
+    assert.equal(C.traceScene(map,from,to).hit,false,l.type);assert.equal(C.clearWalk(map,from,to),true,l.type);
+    const post=map.landmarkParts.find(b=>b.z0===0);const x=(post.x0+post.x1)/2;
+    assert.equal(C.traceScene(map,{...from,x},{...to,x}).hit,true);assert.equal(C.clearWalk(map,{...from,x},{...to,x}),false);
+    const beam=map.landmarkParts.find(b=>b.x0<l.x&&b.x1>l.x&&b.z0>100);const z=(beam.z0+beam.z1)/2;
+    assert.equal(C.traceScene(map,{...from,z},{...to,z}).hit,true);
+  }
+});
+test('cover blocks perception and aim assist even at point blank distance',()=>{
+  const {a,p,t}=shootingArena();p.angle=.04;t.x=294;t.angle=Math.PI;
+  a.map.landmarkParts=[{x0:251,x1:258,y0:200,y1:248,z0:0,z1:120}];
+  assert.equal(C.los(a.map,p,t),false);a.aimAssist(p,.05,{});assert.equal(p.angle,.04);
+  C.Arena.prototype.updateAI.call(a,t,.025);assert.equal(t.ai.target,null);
+});
+test('movement and navigation go around the same landmark volume',()=>{
+  const map=openMap();map.landmarkParts=[{x0:280,x1:330,y0:160,y1:288,z0:0,z1:100}];
+  const a={x:224,y:224},goal={x:416,y:224},path=C.pathfind(map,a,goal);assert.ok(path.length>0);
+  let previous=a;for(const point of path){assert.ok(C.clearWalk(map,previous,point));previous=point;}
+  const e=C.createEntity('test','TEST','BLUE',true);Object.assign(e,a);for(let i=0;i<40;i++)C.moveCircle(map,e,15,0);
+  assert.ok(e.x<=262);assert.ok(C.canStand(map,e.x,e.y,18));
+});
+
+function onlineFixture(mode='TEAM',uid='u0'){
+  const a=new C.Arena(),n=new C.FirebaseArena(a,{status(){},notify(){},roomChanged(){}});let clock=100000;
+  n.now=()=>clock;n.setClock=v=>clock=v;n.code='123456';n.uid=uid;n.hostId='u0';n.connected=true;n.db={};
+  n.sdk={ref:(_db,p)=>p,serverTimestamp:()=>clock,set:async()=>{},remove:async()=>{},update:async()=>{},runTransaction:async(_r,fn)=>{const v=fn(n.shared);if(v)n.shared=v;return {committed:!!v};}};
+  n.members=Object.fromEntries(Array.from({length:10},(_,i)=>['u'+i,{nickname:'P'+i,slot:i,joinedAt:i}]));
+  n.roster=Object.fromEntries(Object.keys(n.members).map((id,i)=>[id,{nickname:id,matchId:'m',team:C.MODES[mode].ffa?'SOLO':mode==='BOSS'?(i===3?'BOSS':'HUNTERS'):(i%2?'RED':'BLUE'),spawnIndex:C.MODES[mode].ffa?i:mode==='BOSS'?(i===3?0:i<3?i:i-1):Math.floor(i/2)}]));
+  n.shared={phase:'PLAYING',mode,round:1,matchId:'m',mapId:'depot',roundStartedAt:90000,roundEndsAt:C.MODES[mode].limit?90000+C.MODES[mode].limit*1000:0,score:{BLUE:0,RED:0},captureTime:{BLUE:0,RED:0},captureUpdatedAt:clock};n.applySharedState();
+  n.sending=false;n.states=Object.fromEntries(a.entities.map(e=>[e.id,{...e,round:1,matchId:'m',updatedAt:clock,ammo:30,life:0}]));return n;
+}
+test('online every mode applies host spawns, roles, maxima and fixed map on every client',()=>{
+ for(const mode of Object.keys(C.MODES))for(const uid of ['u0','u3','u9']){const n=onlineFixture(mode,uid),a=n.arena;assert.equal(a.mode,mode);assert.equal(a.entities.length,10);for(const e of a.entities)assert.ok(C.canStand(a.map,e.x,e.y,19));assert.equal(new Set(a.entities.map(e=>e.x+','+e.y)).size,10);if(mode==='BOSS'){assert.equal(a.entities.find(e=>e.team==='BOSS').maxShield,1000);assert.equal(a.entities.find(e=>e.team==='BOSS').maxHp,2000);assert.equal(a.timeLeft(),Infinity);}if(C.MODES[mode].ffa)assert.equal(a.entities.filter(e=>C.enemy(a.player(),e,mode)).length,9);const map=a.map;n.shared.round++;n.applySharedState();assert.equal(a.map,map);}
+});
+test('host random match selection covers exactly five modes and random boss role',async()=>{
+ const original=Math.random;try{for(let i=0;i<5;i++){const n=onlineFixture();n.shared.phase='LOBBY';let payload;n.sdk.update=async(_r,v)=>payload=v;let seq=[.1,(i+.1)/5,.35,.2];Math.random=()=>seq.shift()??.2;await n.startMatch();assert.equal(payload.state.mode,Object.keys(C.MODES)[i]);assert.equal(Object.keys(payload.roster).length,10);if(i===3)assert.equal(payload.roster.u3.team,'BOSS');}}finally{Math.random=original;}
+});
+test('online SOLO uses personal wins and timed ties, INFINITY uses kills, BOSS uses actual assigned boss',()=>{
+ let n=onlineFixture('SOLO');for(const s of Object.values(n.states))s.alive=false;n.states.u4.alive=true;n.hostTick();assert.equal(n.shared.result.winner,'u4');assert.equal(n.shared.score.u4,1);
+ n=onlineFixture('SOLO');n.setClock(n.shared.roundEndsAt);n.hostTick();assert.equal(n.shared.result.draw,true);
+ n=onlineFixture('INFINITY');n.states.u7.kills=6;n.setClock(n.shared.roundEndsAt);n.hostTick();assert.equal(n.shared.result.winner,'u7');assert.equal(n.shared.result.match,true);
+ n=onlineFixture('INFINITY');n.setClock(n.shared.roundEndsAt);n.hostTick();assert.equal(n.shared.result.draw,true);
+ n=onlineFixture('BOSS');n.states.u3.alive=false;n.hostTick();assert.equal(n.shared.result.winner,'HUNTERS');
+ n=onlineFixture('BOSS');for(const [id,s]of Object.entries(n.states))if(id!=='u3')s.alive=false;n.hostTick();assert.equal(n.shared.result.winner,'BOSS');
+});
+test('online respawn timers reset life state and old-life damage is discarded',async()=>{
+ for(const mode of ['INFINITY','CAPTURE']){const n=onlineFixture(mode),a=n.arena,p=a.player();n.hostId='other';p.alive=false;p.hp=0;p.life=2;p.respawnEndsAt=n.now()+C.MODES[mode].respawn*1000;p.jumpZ=30;p.cameraPitch=.4;p.recoilPitch=.3;p.reloadLeft=2;n.tick(.02);assert.equal(p.alive,false);n.setClock(p.respawnEndsAt);n.tick(.02);assert.equal(p.alive,true);assert.equal(p.life,3);assert.equal(p.shield,50);assert.equal(p.jumpZ,0);assert.equal(p.reloadLeft,0);assert.equal(p.recoilPitch,0);assert.equal(p.spawnProtectionUntil-a.time,2);
+ await n.receiveDamage('old',{attacker:'u1',raw:26,weapon:'AR',round:1,matchId:'m',life:2,at:n.now()});assert.equal(p.shield,50);}
+ for(const mode of ['TEAM','SOLO','BOSS']){const n=onlineFixture(mode);n.hostId='other';n.arena.player().alive=false;n.arena.player().respawnEndsAt=1;n.tick(.02);assert.equal(n.arena.player().alive,false);}
+});
+test('online boss remote health is not clamped to normal soldier limits',()=>{const n=onlineFixture('BOSS');n.receivePlayers();const b=n.arena.entities.find(e=>e.id==='u3');assert.equal(b.hp,2000);assert.equal(b.shield,1000);});
+test('host capture totals pause and survive migration; neutralization clears old owner on clients',()=>{
+ const n=onlineFixture('CAPTURE');n.shared.captureTime={BLUE:20,RED:8};n.shared.points={A:{owner:'BLUE',control:1},B:{owner:'BLUE',control:1},C:{owner:'RED',control:-1}};
+ for(const s of Object.values(n.states))s.alive=false;n.shared.captureUpdatedAt=n.now()-200;n.hostTick();assert.equal(n.shared.captureTime.BLUE,20.2);assert.equal(n.shared.captureTime.RED,8);
+ n.hostBusy=false;n.shared.points.B={control:0,contested:false};n.setClock(n.now()+200);n.hostTick();assert.equal(n.shared.captureTime.BLUE,20.2);n.applySharedState();assert.equal(n.arena.points[1].owner,null);
+ n.hostBusy=false;n.shared.captureTime.BLUE=45;n.setClock(n.now()+200);n.hostTick();assert.equal(n.shared.result.winner,'BLUE');
+});
+test('online state waits for matching roster and all modes return through match end to lobby',async()=>{
+ for(const mode of Object.keys(C.MODES)){
+ const n=onlineFixture(mode),a=n.arena;n.shared={...n.shared,matchId:'next',phase:'PLAYING'};n.applySharedState();assert.equal(n.lastRoundKey,'m:1');
+ for(const r of Object.values(n.roster))r.matchId='next';n.applySharedState();assert.equal(n.lastRoundKey,'next:1');
+ a.cheats={aim:true,esp:true,noRecoil:true};n.hostFinish(mode==='SOLO'?'u0':mode==='BOSS'?'BOSS':'BLUE','test',true);await Promise.resolve();n.applySharedState();assert.equal(a.state,'ROUND_END');
+ n.setClock(n.shared.transitionAt+1);n.hostTick();await Promise.resolve();n.applySharedState();assert.equal(a.state,'MATCH_END');assert.equal(a.cheats.esp,false);
+ n.setClock(n.shared.transitionAt+1);n.hostTick();await Promise.resolve();n.applySharedState();assert.equal(a.state,'LOBBY');
+ }
+});
+test('each online respawn life publishes a distinct kill record',()=>{
+ const n=onlineFixture('INFINITY'),keys=[];n.sdk.set=async(ref)=>keys.push(ref);const p=n.arena.player();n.sending=false;p.alive=false;p.life=0;n.onKill({victimId:p.id,attackerId:'u1',attacker:'u1',victim:p.name,weapon:'AR'});p.life=1;n.onKill({victimId:p.id,attackerId:'u1',attacker:'u1',victim:p.name,weapon:'AR'});assert.equal(new Set(keys.filter(k=>k.includes('/kills/'))).size,2);assert.equal(p.respawnEndsAt,n.now()+4000);
 });
