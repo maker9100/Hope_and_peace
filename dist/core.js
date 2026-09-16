@@ -34,7 +34,28 @@
   const mix=(a,b,t)=>a+(b-a)*t;
   const enemy=(a,b,mode)=>!!a&&!!b&&a.id!==b.id&&(MODES[mode].ffa||a.team!==b.team);
   const wallAt=(map,x,y)=>map.grid[Math.floor(y/TILE)]?.[Math.floor(x/TILE)] || (x<0||y<0||x>=map.width*TILE||y>=map.height*TILE ? 1:0);
+  // Shared finite landmark volumes: movement, LOS, hitscan, bolts and renderer.
+  function boxInterval(a,b,box,flat=false){
+    let near=0,far=1;
+    for(const axis of (flat?['x','y']:['x','y','z'])){
+      const delta=b[axis]-a[axis],lo=box[axis+'0'],hi=box[axis+'1'];
+      if(Math.abs(delta)<1e-9){if(a[axis]<lo||a[axis]>hi)return null;continue;}
+      let enter=(lo-a[axis])/delta,leave=(hi-a[axis])/delta;
+      if(enter>leave)[enter,leave]=[leave,enter];near=Math.max(near,enter);far=Math.min(far,leave);
+      if(near>far)return null;
+    }return {near,far};
+  }
+  function traceScene(map,a,b){
+    const length=Math.hypot(b.x-a.x,b.y-a.y),wall=raycast(map,a.x,a.y,Math.atan2(b.y-a.y,b.x-a.x),length);
+    let t=wall.hit?wall.d/Math.max(length,1e-9):1,hit=wall.hit,part=null;
+    for(const box of map.landmarkParts||[]){const span=boxInterval(a,b,box);if(span&&span.near<=t){t=span.near;hit=true;part=box;}}
+    return {hit,t,part,x:mix(a.x,b.x,t),y:mix(a.y,b.y,t),z:mix(a.z,b.z,t)};
+  }
   function canStand(map,x,y,r=18){
+    for(const box of map.landmarkParts||[]){
+      if(box.z0>=70||box.z1<=0)continue;
+      if((x-clamp(x,box.x0,box.x1))**2+(y-clamp(y,box.y0,box.y1))**2<r*r)return false;
+    }
     const x0=Math.floor((x-r)/TILE), x1=Math.floor((x+r)/TILE), y0=Math.floor((y-r)/TILE),y1=Math.floor((y+r)/TILE);
     for(let gy=y0;gy<=y1;gy++) for(let gx=x0;gx<=x1;gx++){
       if(gy<0||gx<0||gy>=map.height||gx>=map.width||map.grid[gy][gx]){
@@ -59,7 +80,16 @@
       }
     }return {d:max,hit:false,type:0,side:0,u:0,x:x+dx*max,y:y+dy*max};
   }
-  function los(map,a,b){const d=dist(a,b);return d<1||raycast(map,a.x,a.y,Math.atan2(b.y-a.y,b.x-a.x),d).d>=d-1;}
+  function los(map,a,b){
+    const from={x:a.x,y:a.y,z:a.z??(52+(a.jumpZ||0)-22*(a.crouchBlend||0))};
+    const to={x:b.x,y:b.y,z:b.z??(b.type==='health'||b.type==='shield'?19:42+(b.jumpZ||0)-14*(b.crouchBlend||0))};
+    return !traceScene(map,from,to).hit;
+  }
+  function clearWalk(map,a,b,r=19){
+    const steps=Math.max(1,Math.ceil(dist(a,b)/8));
+    for(let i=0;i<=steps;i++)if(!canStand(map,mix(a.x,b.x,i/steps),mix(a.y,b.y,i/steps),r))return false;
+    return true;
+  }
   // Earliest segment/circle intersection; used by bullets and swept crossbow bolts.
   function segmentCircle(ax,ay,bx,by,cx,cy,r){
     const dx=bx-ax,dy=by-ay,fx=ax-cx,fy=ay-cy,a=dx*dx+dy*dy,c=fx*fx+fy*fy-r*r;
@@ -79,8 +109,15 @@
   // Four-neighbour A*: no corner cutting, all waypoints centered on open cells.
   function pathfind(map,start,goal){
     const w=map.width,h=map.height,sx=clamp(Math.floor(start.x/TILE),1,w-2),sy=clamp(Math.floor(start.y/TILE),1,h-2);
-    const tx=clamp(Math.floor(goal.x/TILE),1,w-2),ty=clamp(Math.floor(goal.y/TILE),1,h-2);
+    let tx=clamp(Math.floor(goal.x/TILE),1,w-2),ty=clamp(Math.floor(goal.y/TILE),1,h-2);
     if(map.grid[ty][tx])return[];
+    if(!canStand(map,(tx+.5)*TILE,(ty+.5)*TILE,19)){
+      const candidates=[];
+      for(let oy=-2;oy<=2;oy++)for(let ox=-2;ox<=2;ox++){
+        const gx=tx+ox,gy=ty+oy,p={x:(gx+.5)*TILE,y:(gy+.5)*TILE};
+        if(gx>0&&gy>0&&gx<w-1&&gy<h-1&&clearWalk(map,p,goal))candidates.push({gx,gy,d:dist(p,goal)});
+      }candidates.sort((a,b)=>a.d-b.d);if(!candidates.length)return[];tx=candidates[0].gx;ty=candidates[0].gy;
+    }
     const s=sy*w+sx,t=ty*w+tx,g=new Float32Array(w*h).fill(Infinity),from=new Int32Array(w*h).fill(-1),closed=new Uint8Array(w*h),open=[s];g[s]=0;
     let loops=0;
     while(open.length&&loops++<w*h){
@@ -90,6 +127,7 @@
       closed[v]=1;const x=v%w,y=Math.floor(v/w);
       for(const [nx,ny]of[[x+1,y],[x-1,y],[x,y+1],[x,y-1]]){
         if(nx<1||ny<1||nx>=w-1||ny>=h-1||map.grid[ny][nx])continue;
+        if(map.landmarkParts?.length&&!clearWalk(map,v===s?start:{x:(x+.5)*TILE,y:(y+.5)*TILE},{x:(nx+.5)*TILE,y:(ny+.5)*TILE}))continue;
         const n=ny*w+nx;if(closed[n])continue;
         const nearWall=map.grid[ny-1][nx]||map.grid[ny+1][nx]||map.grid[ny][nx-1]||map.grid[ny][nx+1];
         const cost=g[v]+1+(nearWall?.12:0);if(cost<g[n]){g[n]=cost;from[n]=v;if(!open.includes(n))open.push(n);}
@@ -131,7 +169,7 @@
       const count={};for(let i=0;i<this.entities.length;i++){
         const e=this.entities[i];let pos;
         if(MODES[this.mode].ffa)pos=this.map.ffa[i];
-        else if(this.mode==='BOSS')pos=i===0?this.map.boss:this.map.hunters[i-1];
+        else if(this.mode==='BOSS'){pos=e.team==='BOSS'?this.map.boss:this.map.hunters[count.HUNTERS||0];if(e.team!=='BOSS')count.HUNTERS=(count.HUNTERS||0)+1;}
         else{const side=e.team==='BLUE'?'BLUE':'RED';const n=count[side]||0;pos=this.map.spawns[side][n];count[side]=n+1;}
         this.resetEntity(e,pos,this.mode==='INFINITY'?2:0);
       }this.setState(MATCH_STATE.PLAYING);this.emit('roundStart',{round:this.round});
@@ -279,17 +317,17 @@
       const aggregated=new Map();
       for(let n=0;n<(w.pellets||1);n++){
         const a=angle+(Math.random()-.5)*w.spread*2,p=pitch+(Math.random()-.5)*w.spread*.65;
-        const wall=raycast(this.map,e.x,e.y,a,w.range),bx=e.x+Math.cos(a)*wall.d,by=e.y+Math.sin(a)*wall.d;
+        const wall=traceScene(this.map,{x:e.x,y:e.y,z},{x:e.x+Math.cos(a)*w.range,y:e.y+Math.sin(a)*w.range,z:z+Math.tan(p)*w.range}),bx=wall.x,by=wall.y,travel=w.range*wall.t;
         let hit=null,first=1;
         for(const t of this.entities){if(!t.alive||!enemy(e,t,this.mode))continue;
           const k=segmentCircle(e.x,e.y,bx,by,t.x,t.y,t.radius+(e.weapon===2?16:0));
-          if(k===null||k>=first)continue;const hz=z+Math.tan(p)*wall.d*k;
+          if(k===null||k>=first)continue;const hz=z+Math.tan(p)*travel*k;
           if(hz<t.jumpZ-5||hz>t.jumpZ+this.height(t)+5)continue;
           hit=t;first=k;
         }
         if(hit)aggregated.set(hit,(aggregated.get(hit)||0)+w.damage);
-        this.effects.push({type:'tracer',x1:e.x,y1:e.y,z1:z,x:mix(e.x,bx,first),y:mix(e.y,by,first),z:z+Math.tan(p)*wall.d*first,life:.07,maxLife:.07,team:e.team});
-        if(wall.hit&&!hit)this.effects.push({type:'spark',x:bx,y:by,z:clamp(z+Math.tan(p)*wall.d,0,96),life:.20,maxLife:.20});
+        this.effects.push({type:'tracer',x1:e.x,y1:e.y,z1:z,x:mix(e.x,bx,first),y:mix(e.y,by,first),z:z+Math.tan(p)*travel*first,life:.07,maxLife:.07,team:e.team});
+        if(wall.hit&&!hit)this.effects.push({type:'spark',x:bx,y:by,z:wall.z,life:.20,maxLife:.20});
       }
       for(const [target,damage]of aggregated)this.damage(target,damage,e,w.name);
       return true;
@@ -299,14 +337,15 @@
       for(const p of this.projectiles){
         p.life-=dt;if(p.life<=0)continue;
         const bx=p.x+p.vx*dt,by=p.y+p.vy*dt,bz=p.z+p.vz*dt,owner=this.entities.find(e=>e.id===p.owner);
-        const distance=Math.hypot(bx-p.x,by-p.y),wall=raycast(this.map,p.x,p.y,Math.atan2(p.vy,p.vx),distance);
-        let limit=wall.hit?wall.d/Math.max(distance,.001):1,hit=null;
+        const wall=traceScene(this.map,p,{x:bx,y:by,z:bz});
+        let limit=wall.t,hit=null;
         for(const t of this.entities){if(!t.alive||!owner||!enemy(owner,t,this.mode))continue;
           const k=segmentCircle(p.x,p.y,bx,by,t.x,t.y,t.radius+3);if(k===null||k>=limit)continue;
           const z=mix(p.z,bz,k);if(z<t.jumpZ-3||z>t.jumpZ+this.height(t)+3)continue;limit=k;hit=t;
         }
         if(hit){if(!p.visualOnly)this.damage(hit,p.damage,owner,'CROSSBOW');this.effects.push({type:'spark',x:mix(p.x,bx,limit),y:mix(p.y,by,limit),z:mix(p.z,bz,limit),life:.25,maxLife:.25});continue;}
-        if(wall.hit||bz<0||bz>160)continue;
+        if(wall.hit){this.effects.push({type:'spark',x:wall.x,y:wall.y,z:wall.z,life:.20,maxLife:.20});continue;}
+        if(bz<0||bz>400)continue;
         p.x=bx;p.y=by;p.z=bz;remaining.push(p);
       }this.projectiles=remaining;
     }
@@ -379,5 +418,5 @@
     }
     toLobby(){this.cheats={aim:false,esp:false,noRecoil:false};this.spectatorId=null;this.projectiles=[];this.online=false;this.setState(MATCH_STATE.LOBBY);this.emit('lobby');}
   }
-  Object.assign(CA,{TILE,TAU,MATCH_STATE,MODES,WEAPONS,ROLES,BOSS_BALANCE,clamp,wrap,dist,mix,enemy,wallAt,canStand,raycast,los,segmentCircle,moveCircle,pathfind,createEntity,Arena});
+  Object.assign(CA,{TILE,TAU,MATCH_STATE,MODES,WEAPONS,ROLES,BOSS_BALANCE,clamp,wrap,dist,mix,enemy,wallAt,boxInterval,traceScene,clearWalk,canStand,raycast,los,segmentCircle,moveCircle,pathfind,createEntity,Arena});
 })(typeof window!=='undefined'?window:globalThis);

@@ -26,7 +26,7 @@
       if(arena.state===C.MATCH_STATE.ROUND_END||arena.state===C.MATCH_STATE.MATCH_END){updateResult();releasePointer();}
       if(arena.state===C.MATCH_STATE.LOBBY){setPanel(net?.code?'online':'home');dom['attract-map'].textContent=arena.map?.name||'DEPOT';}
     }
-    if(type==='roundStart'){audio.event('roundStart');input.crouchToggle=false;combatUntil=performance.now()+2200;dom['combat-message'].textContent=arena.mode==='BOSS'?'YOU ARE THE BOSS':`ROUND ${arena.round} · FIGHT`;lastFeed='';}
+    if(type==='roundStart'){audio.event('roundStart');input.crouchToggle=false;combatUntil=performance.now()+2200;dom['combat-message'].textContent=arena.mode==='BOSS'?(arena.player()?.team==='BOSS'?'YOU ARE THE BOSS':'HUNT THE BOSS'):`ROUND ${arena.round} · FIGHT`;lastFeed='';}
     if(type==='fire'){
       const view=arena.viewpoint();const d=view?C.dist(view,data.entity):0,volume=data.entity.id===view?.id?1:C.clamp(1-d/1300,0,.65),pan=view?Math.sin(Math.atan2(data.entity.y-view.y,data.entity.x-view.x)-view.angle):0;
       audio.fire(data.weapon.id,volume,pan);renderer?.onFire(data.entity);if(arena.online&&data.entity.isPlayer)net?.onFire(data);
@@ -105,7 +105,7 @@
     const alive=arena.entities.filter(e=>e.alive),blue=alive.filter(e=>e.team==='BLUE').length,red=alive.filter(e=>e.team==='RED').length;
     if(mode==='TEAM'){dom['score-top'].innerHTML=`<span class="blue">${arena.score.BLUE}</span><small>FIRST TO 7</small><span class="red">${arena.score.RED}</span>`;dom['alive-line'].textContent=`BLUE ${blue} ALIVE · RED ${red} ALIVE`;}
     else if(mode==='SOLO'||mode==='INFINITY'){const metric=mode==='SOLO'?'wins':'kills',leader=[...arena.entities].sort((a,b)=>b[metric]-a[metric])[0];dom['score-top'].textContent=`${p[metric]} / ${leader[metric]}`;dom['alive-line'].textContent=mode==='SOLO'?`${alive.length} ALIVE · FIRST TO 7`:`YOUR KILLS / TOP KILLS · ${alive.length} ALIVE`;}
-    else if(mode==='BOSS'){dom['score-top'].textContent='BOSS / '+alive.filter(e=>e.team==='HUNTERS').length;dom['alive-line'].textContent='YOU VS 9 HUNTERS';}
+    else if(mode==='BOSS'){dom['score-top'].textContent='BOSS / '+alive.filter(e=>e.team==='HUNTERS').length;dom['alive-line'].textContent=p.team==='BOSS'?'YOU = BOSS · ELIMINATE ALL HUNTERS':'YOU = HUNTER · ELIMINATE THE BOSS';}
     else{dom['score-top'].innerHTML=`<span class="blue">${arena.captureTime.BLUE.toFixed(1)}</span><small>/ 45s</small><span class="red">${arena.captureTime.RED.toFixed(1)}</span>`;dom['alive-line'].textContent='BLUE / 45s · RED / 45s · 누적 점령';}
     const left=arena.timeLeft(),seconds=Math.ceil(left),noLimit=!C.MODES[mode].limit;dom.timer.textContent=noLimit?'NO LIMIT':`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;dom.timer.classList.toggle('urgent',!noLimit&&left<=10);
     dom['capture-hud'].replaceChildren();dom['capture-local'].textContent='';if(mode==='CAPTURE')for(const pt of arena.points){const chip=document.createElement('span');chip.className='point-chip';chip.style.color=pt.contested?'#ffffff':pt.owner==='BLUE'?'#62bdff':pt.owner==='RED'?'#ff6d64':'#ffcc59';const prog=pt.capturing&&Math.abs(pt.control)<1?` ${Math.round(Math.abs(pt.control)*100)}%`:'';chip.textContent=`${pt.id} ${pt.contested?'CONTESTED':pt.owner||'NEUTRAL'}${prog}`;dom['capture-hud'].append(chip);if(p.alive&&C.dist(p,pt)<pt.radius)dom['capture-local'].textContent=pt.contested?`${pt.id} · CONTESTED`:`${pt.id} · ${pt.owner===p.team?'OWNED':`CAPTURE ${Math.round(Math.abs(pt.control)*100)}%`}`;}

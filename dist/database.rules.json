@@ -17,10 +17,10 @@
             ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999999999999"
           },
           "schema": {
-            ".validate": "newData.val() === 1"
+            ".validate": "newData.val() === 2"
           },
           "mode": {
-            ".validate": "newData.val() === 'TEAM'"
+            ".validate": "newData.val() === 'RANDOM'"
           },
           "$other": {
             ".validate": false
@@ -67,10 +67,13 @@
               ".validate": "newData.isString() && newData.val().length <= 18"
             },
             "team": {
-              ".validate": "newData.val() === 'BLUE' || newData.val() === 'RED'"
+              ".validate": "newData.val() === 'BLUE' || newData.val() === 'RED' || newData.val() === 'SOLO' || newData.val() === 'BOSS' || newData.val() === 'HUNTERS'"
             },
             "spawnIndex": {
-              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 4"
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9"
+            },
+            "matchId": {
+              ".validate": "newData.isString() && newData.val().length <= 100"
             },
             "$other": {
               ".validate": false
@@ -84,7 +87,7 @@
             ".validate": "newData.val() === 'LOBBY' || newData.val() === 'PLAYING' || newData.val() === 'ROUND_END' || newData.val() === 'MATCH_END'"
           },
           "mode": {
-            ".validate": "newData.val() === 'TEAM'"
+            ".validate": "newData.val() === 'TEAM' || newData.val() === 'SOLO' || newData.val() === 'INFINITY' || newData.val() === 'BOSS' || newData.val() === 'CAPTURE'"
           },
           "round": {
             ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999"
@@ -105,15 +108,42 @@
             ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999999999999"
           },
           "score": {
-            ".validate": "newData.hasChildren(['BLUE','RED'])",
-            "BLUE": {
+            "$id": {
               ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 7"
+            }
+          },
+          "captureTime": {
+            "BLUE": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 45"
             },
             "RED": {
-              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 7"
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 45"
             },
             "$other": {
               ".validate": false
+            }
+          },
+          "captureUpdatedAt": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999999999999"
+          },
+          "points": {
+            "$id": {
+              ".validate": "$id === 'A' || $id === 'B' || $id === 'C'",
+              "owner": {
+                ".validate": "newData.val() === 'BLUE' || newData.val() === 'RED'"
+              },
+              "control": {
+                ".validate": "newData.isNumber() && newData.val() >= -1 && newData.val() <= 1"
+              },
+              "contested": {
+                ".validate": "newData.isBoolean()"
+              },
+              "capturing": {
+                ".validate": "newData.val() === 'BLUE' || newData.val() === 'RED'"
+              },
+              "$other": {
+                ".validate": false
+              }
             }
           },
           "result": {
@@ -160,10 +190,19 @@
               ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 0.6"
             },
             "hp": {
-              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= (root.child('rooms').child($room).child('roster').child($uid).child('team').val() === 'BOSS' ? 2000 : 100)"
             },
             "shield": {
-              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 50"
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= (root.child('rooms').child($room).child('roster').child($uid).child('team').val() === 'BOSS' ? 1000 : 50)"
+            },
+            "life": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999999"
+            },
+            "respawnEndsAt": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999999999999"
+            },
+            "protectionEndsAt": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999999999999"
             },
             "alive": {
               ".validate": "newData.isBoolean()"
@@ -257,6 +296,9 @@
               ".validate": "newData.hasChildren(['attacker','raw','weapon','round','matchId','at'])",
               "attacker": {
                 ".validate": "newData.isString() && newData.val().length <= 128"
+              },
+              "life": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 999999"
               },
               "raw": {
                 ".validate": "newData.isNumber() && newData.val() >= 0.001 && newData.val() <= 120"

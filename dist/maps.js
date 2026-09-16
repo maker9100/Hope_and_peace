@@ -3,6 +3,42 @@
   'use strict';const C=root.CA,T=C.TILE;
   const p=(x,y,extra={})=>({x:x*T,y:y*T,...extra});
   const teamSpawns={BLUE:[[2.5,23.5],[3.5,24.5],[4.5,23.5],[2.5,25.5],[5.5,25.5]],RED:[[27.5,2.5],[26.5,3.5],[25.5,2.5],[27.5,4.5],[24.5,1.5]]};
+  function landmarkParts(l){
+    const out=[],s=l.scale;
+    const box=(x,y,w,d,z,h,color,detail='')=>out.push({x0:l.x+(x-w/2)*s,x1:l.x+(x+w/2)*s,y0:l.y+(y-d/2)*s,y1:l.y+(y+d/2)*s,z0:z*s,z1:(z+h)*s,color,detail,landmark:l.type});
+    switch(l.type){
+      case 'crane':
+        for(const x of[-48,48]){box(x,0,13,24,0,132,'#d5ad46','hazard');box(x,0,23,34,0,8,'#626859');}
+        box(0,0,116,22,127,17,'#e6bd52','hazard');box(0,0,20,20,112,15,'#536357');box(0,0,2,2,72,40,'#394840');break;
+      case 'containers':
+        box(0,0,104,42,0,50,'#417997','ribs');box(0,0,82,39,50,49,'#538dad','ribs');break;
+      case 'platform':
+        box(0,0,110,54,0,18,'#787e69','hazard');box(-20,0,38,34,18,34,'#a39b74','crate');break;
+      case 'gate':
+        box(-44,0,28,34,0,100,'#ae594a','ribs');box(44,0,28,34,0,100,'#ae594a','ribs');box(0,0,116,34,100,30,'#c16d56','ribs');break;
+      case 'forklift':
+        box(0,0,68,36,8,31,'#deab46','hazard');
+        for(const x of[-24,24])for(const y of[-20,20])box(x,y,18,10,0,20,'#283832');
+        for(const x of[-15,21])for(const y of[-15,15])box(x,y,4,4,39,41,'#dbae51');
+        box(3,0,44,38,80,5,'#e3ba62');box(1,0,16,19,39,15,'#324b43');
+        box(40,0,5,30,0,92,'#536d68');for(const y of[-10,10])box(53,y,28,5,0,4,'#6d8077');break;
+      case 'hazard':
+        for(const x of[-32,0,32])box(x,0,27,29,0,43,'#c5aa4b','hazard');break;
+      case 'laboratory':
+        box(0,0,95,34,0,8,'#b5cfc6');box(0,0,95,34,8,69,'#64aa9e','glass');box(0,0,100,38,77,7,'#d4e2d4');break;
+      case 'reactor':
+        box(0,0,75,61,0,14,'#4e7268');box(0,0,60,48,14,80,'#58bba7','reactor');box(0,0,66,52,94,10,'#8ebcaf');break;
+      case 'quarantine':
+        box(0,0,90,26,0,87,'#587969','glass');for(const x of[-44,44])box(x,0,8,30,0,92,'#d7ae53','hazard');box(0,0,8,28,0,87,'#d7ae53');box(0,0,98,30,87,8,'#d0d9bc');break;
+      case 'monument':
+        box(0,0,100,54,0,10,'#b8b296');box(0,0,78,43,10,12,'#959b89');box(0,0,33,30,22,96,'#b5b8a2');box(0,0,21,23,118,25,'#869a89');break;
+      case 'steps':
+        for(let i=0;i<5;i++)box(0,-22+i*11,110-i*14,11,0,6+i*6,'#adb099','steps');break;
+      case 'clock':
+        box(0,0,34,29,0,8,'#718b7d');box(0,0,23,20,8,84,'#b7b295');box(0,0,49,23,92,49,'#ede5bc','clock');break;
+      default:throw new Error('Missing landmark model: '+l.type);
+    }return out;
+  }
   function build(spec){
     const grid=Array.from({length:27},(_,y)=>Array.from({length:30},(_,x)=>x===0||y===0||x===29||y===26?1:0));
     for(const [x,y,w,h,type]of spec.blocks)for(let yy=y;yy<y+h;yy++)for(let xx=x;xx<x+w;xx++)grid[yy][xx]=type;
@@ -10,6 +46,7 @@
       ffa:spec.ffa.map(([x,y])=>p(x,y)),points:spec.points.map(([id,x,y])=>p(x,y,{id,radius:96})),pickups:spec.orbs.map(([type,x,y])=>p(x,y,{type})),
       landmarks:spec.landmarks.map(([type,name,x,y,scale])=>p(x,y,{type,name,scale})),zones:spec.zones.map(([name,x,y])=>p(x,y,{name}))};
     map.boss=p(3.5,23.5,{angle:-.6});map.hunters=map.ffa.slice(1).map(x=>({...x}));
+    map.landmarkParts=map.landmarks.flatMap(landmarkParts);
     const all=[...map.ffa,...map.spawns.BLUE,...map.spawns.RED,map.boss,...map.hunters,...map.points,...map.pickups];
     for(const pos of all)if(!C.canStand(map,pos.x,pos.y,19))throw new Error(`Blocked authored coordinate: ${spec.name} (${pos.x/T},${pos.y/T})`);
     const origin=map.ffa[0];for(const pos of all)if(C.dist(origin,pos)>64&&!C.pathfind(map,origin,pos).length)throw new Error('Unreachable floor '+spec.name);

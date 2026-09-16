@@ -1,3 +1,4 @@
+/* Firebase public Web client configuration. */
 window.CHEAT_ARENA_FIREBASE = {
   apiKey: "AIzaSyD4wdo0eY9MDd1XzeNE1jXimeehqtTuXjA",
   authDomain: "cheat-arena.firebaseapp.com",

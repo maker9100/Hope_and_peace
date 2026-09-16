@@ -7,7 +7,7 @@
   <meta name="description" content="CHEAT ARENA — 공식 치트로 싸우는 Canvas Raycaster FPS. 5개 AI 모드, 4개 맵, PC와 모바일 지원.">
   <title>CHEAT ARENA</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%23121512'/%3E%3Cpath d='M5 12V5h7m8 0h7v7M5 20v7h7m8 0h7v-7M11 16h10m-5-5v10' fill='none' stroke='%23d5fb4e' stroke-width='3'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css?v=0.1.2">
+  <link rel="stylesheet" href="style.css?v=0.1.4">
   <style>
     /* State visibility takes precedence over layout, touch and cached CSS. */
     body:not([data-state="LOBBY"]) .lobby-only,
@@ -16,18 +16,18 @@
       display: none !important;
     }
   </style>
-  <script defer src="config.js?v=0.1.2"></script>
-  <script defer src="core.js?v=0.1.2"></script>
-  <script defer src="maps.js?v=0.1.2"></script>
-  <script defer src="audio.js?v=0.1.2"></script>
-  <script defer src="render.js?v=0.1.2"></script>
-  <script defer src="network.js?v=0.1.2"></script>
-  <script defer src="game.js?v=0.1.2"></script>
+  <script defer src="config.js?v=0.1.4"></script>
+  <script defer src="core.js?v=0.1.4"></script>
+  <script defer src="maps.js?v=0.1.4"></script>
+  <script defer src="audio.js?v=0.1.4"></script>
+  <script defer src="render.js?v=0.1.4"></script>
+  <script defer src="network.js?v=0.1.4"></script>
+  <script defer src="game.js?v=0.1.4"></script>
 </head>
 <body data-state="LOBBY" data-panel="home">
   <canvas id="world" aria-label="CHEAT ARENA FPS 게임 화면"></canvas>
   <div class="lobby-shade"></div>
-  <header class="brandbar lobby-only"><div class="brand-group"><a class="brand" href="#" aria-label="CHEAT ARENA 로비"><span class="brand-symbol">⌖</span> CHEAT ARENA</a><button id="credits-open" class="quiet credits-trigger" aria-haspopup="dialog" aria-controls="credits-dialog">크레딧</button></div><span class="build">CANVAS COMBAT SYSTEM <b>V0.1.2</b></span><button id="sound" class="quiet" aria-pressed="true">SOUND ON</button></header>
+  <header class="brandbar lobby-only"><div class="brand-group"><a class="brand" href="#" aria-label="CHEAT ARENA 로비"><span class="brand-symbol">⌖</span> CHEAT ARENA</a><button id="credits-open" class="quiet credits-trigger" aria-haspopup="dialog" aria-controls="credits-dialog">크레딧</button></div><span class="build">CANVAS COMBAT SYSTEM <b>V0.1.4</b></span><button id="sound" class="quiet" aria-pressed="true">SOUND ON</button></header>
   <main id="lobby" class="lobby-only">
     <section class="identity">
       <div class="eyebrow"><span></span> ALL ADVANTAGES AUTHORIZED</div>
@@ -41,12 +41,12 @@
       <div class="panel" data-view="home">
         <label class="nickname">CALLSIGN<input id="nickname" maxlength="18" value="PLAYER" autocomplete="off" spellcheck="false" aria-label="닉네임"></label>
         <button id="ai-menu" class="deploy-card primary"><span class="card-number">01</span><span><strong>AI 전투</strong><small>5 GAME MODES · 9 AI OPERATORS</small></span><span class="card-arrow">↗</span></button>
-        <button id="online-menu" class="deploy-card"><span class="card-number">02</span><span><strong>ONLINE</strong><small>TEAM ELIMINATION · UP TO 10</small></span><span class="card-arrow">↗</span></button>
+        <button id="online-menu" class="deploy-card"><span class="card-number">02</span><span><strong>ONLINE</strong><small>5 RANDOM MODES · UP TO 10</small></span><span class="card-arrow">↗</span></button>
         <p class="menu-note">모든 치트는 게임에서 제공하는 공식 전투 기능이다.</p>
       </div>
       <div class="panel" data-view="modes"><div class="subhead"><button class="back quiet">← BACK</button><span>SELECT YOUR RULES</span></div><div id="mode-cards" class="mode-cards"></div></div>
       <div class="panel" data-view="online">
-        <div class="subhead"><button class="back quiet">← BACK</button><span>TEAM ELIMINATION ONLY</span></div>
+        <div class="subhead"><button class="back quiet">← BACK</button><span>RANDOM · 5 MODES</span></div>
         <div id="online-connect"><p class="online-copy">방을 만들거나 6자리 코드로 참가한다.<br>2명 이상 모이면 호스트가 시작할 수 있다.</p><button id="create-room" class="solid">CREATE ROOM</button><div class="join-line"><input id="room-code" maxlength="6" inputmode="numeric" placeholder="6자리 코드" aria-label="방 코드"><button id="join-room">JOIN</button></div></div>
         <div id="room" hidden><div class="room-title">ROOM <strong id="room-id">------</strong><span id="room-capacity">0 / 10</span></div><div id="room-roster"></div><button id="host-start" class="solid">START MATCH</button><button id="leave-room" class="quiet">LEAVE ROOM</button></div>
         <p id="online-status" role="status" class="status-text"></p>
