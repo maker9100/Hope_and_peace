@@ -1,6 +1,23 @@
-# CHEAT ARENA
+# CHEAT ARENA V0.1.2
 
 Canvas 2D / 2.5D Raycaster FPS. No Three.js, WebGL engine, build step, external fonts, images, or copyrighted game sound assets. All local combat modes work without Firebase. The browser loads Firebase SDK 12.4.0 only when creating or joining an online room.
+
+## V0.1.2 변경 내용
+
+- Firebase 및 온라인 TEAM 기능은 유지하고, 플레이어용 설정 입력창·SAVE CONFIG 버튼을 제거했다.
+- 상단의 작은 CHEAT ARENA 로고 옆 크레딧 버튼에서 제작진을 확인할 수 있다.
+- KILLING BOSS는 1 대 9, HP 2000 / Shield 1000, 시간 무제한, 부활 없음 규칙을 유지한다.
+- 보스의 무기별 재장전 시간을 25% 단축했다. AR 1.575초 / Pistol 0.975초 / Shotgun 2.1초 / Crossbow 1.65초 / MAC 3.075초.
+- 헌터는 적을 발견한 뒤 추가 0.3초 동안 조준하고, 사격 0.55~0.80초 뒤 0.65~1.00초 휴지기를 갖는다. 조준 오차는 기존의 1.6배이며, 휴지기에도 추적·이동한다. 근접 칼에는 점사 휴지기를 적용하지 않는다.
+- 보스전 조정은 다른 모드의 피해량·재장전 시간에 적용되지 않는다. 방어막 재생과 아이템 회복량도 기존 규칙을 유지한다.
+- V0.1.1의 로비 겹침 수정은 유지했다. CSS/JS 주소에 버전을 붙여 이전 배포의 캐시와 섞일 가능성을 줄였다.
+- 수정본 파일 이름은 `CHEAT-ARENA-V0.1.2.zip`이며, 다음 수정본부터 V0.1.3처럼 마지막 숫자를 증가시킨다.
+
+## 크레딧
+
+기획:10628 황정욱
+
+개발:11001 강동원,GPT 6 Astra
 
 ## 실행
 
@@ -26,13 +43,14 @@ Render에서는 **New → Static Site**를 선택한다. 설정은 다음과 같
 
 또는 **New → Blueprint**에서 저장소를 연결하면 포함된 `render.yaml`을 사용한다. 기존 Python Web Service가 있다면 이 게임용 Static Site를 새로 만든다.
 
-공개 Firebase 설정은 세 가지 방법 중 하나로 넣는다.
+공개 Firebase 설정은 개발자가 배포 전에 다음 중 한 가지 방법으로 넣는다. 게임 안에는 설정 입력창이 없다.
 
-1. 가장 간단하게: 게임 ONLINE → Firebase 연결 설정에서 입력한다. 해당 브라우저에만 저장된다.
-2. 모든 참가자에게 적용: Render Environment에 `FIREBASE_CONFIG_JSON`을 만들고 아래 형식의 공개 설정 JSON을 값으로 넣은 뒤 다시 배포한다. 빌드가 `dist/config.js`를 생성한다.
-3. 직접 파일 수정: `dist/config.js`에 Web Client Config를 넣은 뒤 커밋한다.
+1. Render: Environment에 `FIREBASE_CONFIG_JSON`을 만들고 아래 형식의 공개 설정 JSON을 값으로 넣은 뒤 다시 배포한다. 빌드가 `dist/config.js`를 생성한다.
+2. GitHub Pages 또는 직접 파일 수정: `dist/config.js`의 `window.CHEAT_ARENA_FIREBASE`에 Web Client Config 객체를 넣은 뒤 커밋한다. Render에만 넣은 환경 변수는 GitHub Pages에 적용되지 않는다.
 
-Static Site의 환경 변수는 JavaScript에 자동 연결되지 않으므로 2번은 포함된 빌드 스크립트를 사용해야 한다. 서비스 계정·비공개 키를 환경 변수나 공개 파일에 넣지 않는다.
+설정이 없으면 ONLINE 화면은 “온라인 서비스를 준비 중입니다”라고 안내하고 방 생성·참가를 비활성화한다. 설정이 있으면 기존 Firebase 방 기능을 사용한다.
+
+Static Site의 환경 변수는 JavaScript에 자동 연결되지 않으므로 1번은 포함된 빌드 스크립트를 사용해야 한다. 서비스 계정·비공개 키를 환경 변수나 공개 파일에 넣지 않는다.
 
 [Render Static Sites](https://render.com/docs/static-sites) · [Render Blueprint 설정](https://render.com/docs/blueprint-spec)
 
@@ -75,8 +93,8 @@ AIM은 시점을 잠그지 않는다. 직접 마우스·터치 입력과 그 직
 2. Authentication → Sign-in method에서 **Anonymous**를 활성화한다.
 3. 프로젝트 설정의 Web Client Config를 복사한다. `databaseURL`은 Realtime Database URL을 사용한다.
 4. Realtime Database → Rules에 `dist/database.rules.json` 전체를 적용한다. 기존 다른 앱의 데이터베이스와 공유한다면 rules를 검토·병합한 뒤 적용한다.
-5. 게임 ONLINE → Firebase 연결 설정에 공개 설정을 **JSON**으로 입력한다. 또는 `dist/config.js`의 `window.CHEAT_ARENA_FIREBASE`에 공개 설정 객체를 넣어 배포한다.
-6. CREATE ROOM → 다른 브라우저에서 동일한 설정 및 6자리 코드로 JOIN → 2명 이상이면 호스트가 START MATCH. 10명이면 5 VS 5로 배치된다. 10명 미만은 참가한 사람만 균형 배치하며 온라인 AI 채우기는 하지 않는다.
+5. `dist/config.js`의 `window.CHEAT_ARENA_FIREBASE`에 공개 설정 객체를 넣어 배포한다. Render에서는 `FIREBASE_CONFIG_JSON` 환경 변수와 포함된 빌드 스크립트를 사용할 수도 있다.
+6. CREATE ROOM → 다른 브라우저에서 같은 게임 주소를 열고 6자리 코드로 JOIN → 2명 이상이면 호스트가 START MATCH. 10명이면 5 VS 5로 배치된다. 10명 미만은 참가한 사람만 균형 배치하며 온라인 AI 채우기는 하지 않는다.
 
 ```json
 {
@@ -88,7 +106,7 @@ AIM은 시점을 잠그지 않는다. 직접 마우스·터치 입력과 그 직
 }
 ```
 
-서비스 계정 JSON, `private_key`, Admin SDK 비공개 키를 클라이언트에 넣지 않는다. UI도 서비스 계정 입력을 거부한다. Firebase 공개 설정은 브라우저에 제공되는 설정이다. 접근 제어는 인증과 Rules가 담당한다.
+서비스 계정 JSON, `private_key`, Admin SDK 비공개 키를 클라이언트에 넣지 않는다. 빌드의 설정 검증도 서비스 계정 키를 거부한다. Firebase 공개 설정은 브라우저에 제공되는 설정이다. 접근 제어는 인증과 Rules가 담당한다.
 
 ### 동기화 권한
 

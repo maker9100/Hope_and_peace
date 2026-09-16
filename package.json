@@ -1,6 +1,6 @@
 {
   "name": "cheat-arena",
-  "version": "1.0.0",
+  "version": "0.1.2",
   "private": true,
   "description": "Canvas raycaster FPS with five AI modes and Firebase team multiplayer",
   "scripts": {
