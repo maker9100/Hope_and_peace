@@ -155,10 +155,17 @@
     viewpoint(){const p=this.player();return p?.alive?p:this.entities.find(e=>e.id===this.spectatorId&&e.alive)||p;}
     start(mode,map,nickname='PLAYER'){
       if(!MODES[mode])throw new Error('Unknown mode');this.online=false;this.mode=mode;this.map=map;this.time=0;this.round=0;this.score={BLUE:0,RED:0};this.captureTime={BLUE:0,RED:0};this.feed=[];this.result=null;this.bombSites=[];this.bomb=null;this.attackTeam='RED';this.defendTeam='BLUE';
-      this.entities=[createEntity('player',nickname,mode==='BOSS'?'BOSS':'BLUE',true,0,mode==='BOSS')];
+      const playerTeam=mode==='BOSS'?'BOSS':mode==='EXPLOSION'?(Math.random()<.5?'RED':'BLUE'):'BLUE';
+      this.entities=[createEntity('player',nickname,playerTeam,true,0,mode==='BOSS')];
+      const sideCount={BLUE:playerTeam==='BLUE'?1:0,RED:playerTeam==='RED'?1:0};
       for(let i=1;i<10;i++){
-        const team=MODES[mode].ffa?'SOLO':mode==='BOSS'?'HUNTERS':i<5?'BLUE':'RED';
-        const name=MODES[mode].ffa?`SOLO-${i+1}`:mode==='BOSS'?`HUNTER-${String(i).padStart(2,'0')}`:`${team}-${String(team==='BLUE'?i+1:i-4).padStart(2,'0')}`;
+        let team;
+        if(MODES[mode].ffa)team='SOLO';
+        else if(mode==='BOSS')team='HUNTERS';
+        else if(mode==='EXPLOSION')team=sideCount.BLUE<5?'BLUE':'RED';
+        else team=i<5?'BLUE':'RED';
+        if(mode==='EXPLOSION')sideCount[team]++;
+        const name=MODES[mode].ffa?`SOLO-${i+1}`:mode==='BOSS'?`HUNTER-${String(i).padStart(2,'0')}`:`${team}-${String(mode==='EXPLOSION'?sideCount[team]:team==='BLUE'?i+1:i-4).padStart(2,'0')}`;
         this.entities.push(createEntity('ai-'+i,name,team,false,i));
       }this.beginRound();
     }
@@ -166,7 +173,7 @@
       this.round++;this.roundStart=this.time;this.roundEndsAt=MODES[this.mode].limit?this.time+MODES[this.mode].limit:Infinity;this.projectiles=[];this.effects=[];this.spectatorId=null;
       this.attackTeam=this.mode==='EXPLOSION'?(this.round<=5?'RED':'BLUE'):'RED';this.defendTeam=this.attackTeam==='RED'?'BLUE':'RED';
       this.bombSites=(this.map.bombSites||this.map.points.slice(0,2)).map((p,i)=>({...p,id:p.id||String.fromCharCode(65+i),radius:p.radius||96}));
-      this.bomb=this.mode==='EXPLOSION'?{planted:false,site:null,x:0,y:0,plantProgress:0,defuseProgress:0,explodeAt:0,carrierTeam:this.attackTeam}:null;
+      this.bomb=this.mode==='EXPLOSION'?{planted:false,site:null,x:0,y:0,plantProgress:0,defuseProgress:0,explodeAt:0,detonating:false,resolveAt:0,carrierTeam:this.attackTeam}:null;
       this.points=this.map.points.map(p=>({...p,owner:null,control:0,contested:false,capturing:null}));
       this.pickups=this.map.pickups.map((p,i)=>({...p,id:'orb-'+i,active:true,respawnAt:0}));
       const count={};for(let i=0;i<this.entities.length;i++){
@@ -207,6 +214,8 @@
       if(this.state===MATCH_STATE.ROUND_END&&!this.online){if(this.time>=this.transitionAt){if(this.result.match){this.cheats={aim:false,esp:false,noRecoil:false};this.setState(MATCH_STATE.MATCH_END);this.transitionAt=this.time+7;this.emit('matchEnd',this.result);}else this.beginRound();}return;}
       if(this.state===MATCH_STATE.MATCH_END&&!this.online){if(this.time>=this.transitionAt)this.toLobby();return;}
       if(this.state!==MATCH_STATE.PLAYING)return;
+      // Freeze combat during the two-second bomb blast presentation. The result is shown only after it finishes.
+      if(this.mode==='EXPLOSION'&&this.bomb?.detonating){if(!this.online)this.updateExplosion(dt);return;}
       for(const e of this.entities){
         if(!e.alive){if(!this.online&&MODES[this.mode].respawn&&this.time>=e.respawnAt){this.resetEntity(e,this.safeSpawn(e),2);this.emit('respawn',{entity:e});}continue;}
         if(e.isRemote)continue;
@@ -405,14 +414,15 @@
     }
     updateExplosion(dt){
       if(this.mode!=='EXPLOSION'||!this.bomb||this.state!==MATCH_STATE.PLAYING)return;
+      if(this.bomb.detonating){if(this.time>=this.bomb.resolveAt)this.finishRound(this.attackTeam,'폭탄 폭발');return;}
       const alive=this.entities.filter(e=>e.alive),attackers=alive.filter(e=>e.team===this.attackTeam),defenders=alive.filter(e=>e.team===this.defendTeam);
       if(!this.bomb.planted){
         let site=null;for(const s of this.bombSites){const atk=attackers.some(e=>dist(e,s)<s.radius*.62&&los(this.map,e,s)),def=defenders.some(e=>dist(e,s)<s.radius*.62&&los(this.map,e,s));if(atk&&!def){site=s;break;}}
         if(site){this.bomb.plantProgress=Math.min(4,this.bomb.plantProgress+dt);this.bomb.site=site.id;if(this.bomb.plantProgress>=4){this.bomb.planted=true;this.bomb.x=site.x;this.bomb.y=site.y;this.bomb.explodeAt=this.time+35;this.bomb.defuseProgress=0;this.emit('bombPlanted',{site:site.id,team:this.attackTeam});}}else{this.bomb.plantProgress=Math.max(0,this.bomb.plantProgress-dt*1.5);if(this.bomb.plantProgress===0)this.bomb.site=null;}
       }else{
+        if(this.time>=this.bomb.explodeAt){this.bomb.detonating=true;this.bomb.resolveAt=this.time+2;this.effects.push({type:'bomb-explosion',x:this.bomb.x,y:this.bomb.y,z:24,life:2,maxLife:2});this.emit('bombExploded',{team:this.attackTeam});return;}
         const bombPoint={x:this.bomb.x,y:this.bomb.y,z:16};const def=defenders.some(e=>dist(e,bombPoint)<72&&los(this.map,e,bombPoint)),atk=attackers.some(e=>dist(e,bombPoint)<72&&los(this.map,e,bombPoint));
         if(def&&!atk){this.bomb.defuseProgress=Math.min(5,this.bomb.defuseProgress+dt);if(this.bomb.defuseProgress>=5){this.emit('bombDefused',{team:this.defendTeam});this.finishRound(this.defendTeam,'폭탄 해체');}}else this.bomb.defuseProgress=Math.max(0,this.bomb.defuseProgress-dt*1.5);
-        if(this.state===MATCH_STATE.PLAYING&&this.time>=this.bomb.explodeAt){this.effects.push({type:'explosion',x:this.bomb.x,y:this.bomb.y,z:24,life:.7,maxLife:.7});this.emit('bombExploded',{team:this.attackTeam});this.finishRound(this.attackTeam,'폭탄 폭발');}
       }
     }
     timeLeft(){if(this.mode==='EXPLOSION'&&this.bomb?.planted)return Math.max(0,this.bomb.explodeAt-this.time);return Math.max(0,this.roundEndsAt-this.time);}
@@ -424,8 +434,12 @@
         if(!blue.length||!red.length){this.finishRound(blue.length?'BLUE':red.length?'RED':null,'상대 팀 전멸');return;}
         if(this.timeLeft()<=0){let win=null;if(blue.length!==red.length)win=blue.length>red.length?'BLUE':'RED';else{const b=blue.reduce((n,e)=>n+e.hp+e.shield,0),r=red.reduce((n,e)=>n+e.hp+e.shield,0);if(Math.abs(b-r)>1e-6)win=b>r?'BLUE':'RED';}this.finishRound(win,'시간 종료 · 생존 인원 / HP + Shield 판정');}
       }else if(this.mode==='EXPLOSION'){
+        if(this.bomb?.detonating)return;
         const attackers=alive.filter(e=>e.team===this.attackTeam),defenders=alive.filter(e=>e.team===this.defendTeam);
-        if(!attackers.length||!defenders.length){this.finishRound(attackers.length?this.attackTeam:defenders.length?this.defendTeam:null,'상대 팀 전멸');return;}
+        // Defenders being wiped always gives the attackers the round. If the bomb is already planted,
+        // wiping the attackers does NOT end the round: defenders must still defuse before detonation.
+        if(!defenders.length){this.finishRound(this.attackTeam,'수비팀 전멸');return;}
+        if(!attackers.length&&!this.bomb?.planted){this.finishRound(this.defendTeam,'공격팀 전멸 · 폭탄 미설치');return;}
         if(!this.bomb?.planted&&Math.max(0,this.roundEndsAt-this.time)<=0){this.finishRound(this.defendTeam,'설치 시간 종료');return;}
       }else if(this.mode==='INFINITY'){
         if(this.timeLeft()<=0){const ranked=[...this.entities].sort((a,b)=>b.kills-a.kills);this.finishRound(ranked[0].kills===ranked[1].kills?null:ranked[0].id,'5분 종료 · 최다 킬',true);}

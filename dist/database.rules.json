@@ -134,6 +134,12 @@
             "explodeAt": {
               ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999999999999"
             },
+            "detonating": {
+              ".validate": "newData.isBoolean()"
+            },
+            "resolveAt": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999999999999"
+            },
             "updatedAt": {
               ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999999999999"
             },

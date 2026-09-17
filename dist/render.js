@@ -202,7 +202,13 @@
       }
     }
     projectiles(){const x=this.ctx;for(const p of this.arena.projectiles){const a=this.projection(p.x,p.y,p.z),b=this.projection(p.x-p.vx*.025,p.y-p.vy*.025,p.z-p.vz*.025);if(!a||!b)continue;x.save();this.clipDepth(a.d,Math.min(a.x,b.x)-6,Math.max(a.x,b.x)+6);if(p.grenade){x.fillStyle='#59674c';x.beginPath();x.arc(a.x,a.y,Math.max(2,5*a.s),0,C.TAU);x.fill();x.strokeStyle='#18251b';x.stroke();}else{x.strokeStyle='#ffe7b2';x.lineWidth=Math.max(1,2*a.s);x.beginPath();x.moveTo(b.x,b.y);x.lineTo(a.x,a.y);x.stroke();}x.restore();}}
-    effects(){const x=this.ctx;for(const f of this.arena.effects){const p=this.projection(f.x,f.y,f.z);if(!p)continue;
+    effects(){const x=this.ctx;for(const f of this.arena.effects){
+      if(f.type==='bomb-explosion'){
+        const q=C.clamp(1-f.life/f.maxLife,0,1),flash=C.clamp(f.life/.32,0,1);x.save();
+        const p=this.projection(f.x,f.y,f.z);if(p){const r=(38+q*235)*p.s;x.globalAlpha=Math.max(.12,1-q*.88);x.fillStyle='#ff8e32';x.beginPath();x.arc(p.x,p.y,r,0,C.TAU);x.fill();x.fillStyle='#fff3bd';x.beginPath();x.arc(p.x,p.y,r*.48,0,C.TAU);x.fill();}
+        x.globalAlpha=.68*flash*(1-q*.55);x.fillStyle=q<.18?'#fff1c0':'#f06b2b';x.fillRect(-40,-40,this.w+80,this.h+80);x.globalAlpha=.22*(1-q);x.fillStyle='#17110d';for(let i=0;i<9;i++){const rr=(50+i*19)*q;x.beginPath();x.arc(this.w*(.18+.08*i),this.h*(.35+.04*(i%3)),rr,0,C.TAU);x.fill();}x.restore();continue;
+      }
+      const p=this.projection(f.x,f.y,f.z);if(!p)continue;
       if(f.type==='tracer'){const a=this.projection(f.x1,f.y1,f.z1);if(!a)continue;x.save();this.clipDepth(p.d,Math.min(a.x,p.x),Math.max(a.x,p.x)+2);x.strokeStyle='#ffe4a252';x.lineWidth=1;x.beginPath();x.moveTo(a.x,a.y);x.lineTo(p.x,p.y);x.stroke();x.restore();}
       else if(f.type==='spark'){x.save();this.clipDepth(p.d,p.x-8,p.x+8);x.fillStyle='#ffdda0';x.globalAlpha=f.life/f.maxLife;x.fillRect(p.x-2,p.y-2,4,4);x.restore();}
       else if(f.type==='explosion'){x.save();this.clipDepth(p.d,p.x-80,p.x+80);const q=1-f.life/f.maxLife,r=(18+q*62)*p.s;x.globalAlpha=Math.max(0,f.life/f.maxLife);x.fillStyle='#ffbe55';x.beginPath();x.arc(p.x,p.y,r,0,C.TAU);x.fill();x.fillStyle='#fff2b8';x.beginPath();x.arc(p.x,p.y,r*.45,0,C.TAU);x.fill();x.restore();}

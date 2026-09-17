@@ -5,7 +5,7 @@
 (function(root){
   'use strict';const C=root.CA;
   class FirebaseArena{
-    constructor(arena,ui){this.arena=arena;this.ui=ui;this.sdk=null;this.db=null;this.uid=null;this.code=null;this.slot=null;this.hostId=null;this.members={};this.roster={};this.states={};this.buffers=new Map();this.shared=null;this.offset=0;this.connected=false;this.unsubs=[];this.globalUnsubs=[];this.disconnects=[];this.lastSend=0;this.lastHostTick=0;this.lastPickupRequest=0;this.lastRoundKey='';this.seenDamage=new Set();this.seenKills=new Set();this.seenGrants=new Set();this.lastSerial=new Map();this.requests={};this.pickupState={};this.hostBusy=false;this.claiming=new Set();this.sending=false;this.lastErrorAt=0;}
+    constructor(arena,ui){this.arena=arena;this.ui=ui;this.sdk=null;this.db=null;this.uid=null;this.code=null;this.slot=null;this.hostId=null;this.members={};this.roster={};this.states={};this.buffers=new Map();this.shared=null;this.offset=0;this.connected=false;this.unsubs=[];this.globalUnsubs=[];this.disconnects=[];this.lastSend=0;this.lastHostTick=0;this.lastPickupRequest=0;this.lastRoundKey='';this.seenDamage=new Set();this.seenKills=new Set();this.seenGrants=new Set();this.lastSerial=new Map();this.requests={};this.pickupState={};this.hostBusy=false;this.claiming=new Set();this.sending=false;this.lastErrorAt=0;this.lastBombBlastKey='';}
     static validateConfig(value){
       if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Firebase 공개 설정 JSON 객체가 필요하다.');
       if('private_key'in value||'privateKey'in value||'client_email'in value||value.type==='service_account')throw new Error('서비스 계정 / 비공개 키는 사용할 수 없다. Web 앱의 공개 설정만 입력한다.');
@@ -89,7 +89,7 @@
       this.roster=roster;const now=this.now(),matchId=`${now.toFixed(0)}-${Math.random().toString(36).slice(2,7)}`;
       for(const entry of Object.values(roster))entry.matchId=matchId;
       const shared={phase:'PLAYING',mode,mapId:map.id,matchId,round:1,roundStartedAt:now,roundEndsAt:C.MODES[mode].limit?now+C.MODES[mode].limit*1000:0,captureTime:{BLUE:0,RED:0},captureUpdatedAt:now,score:{BLUE:0,RED:0},transitionAt:0};
-      if(mode==='EXPLOSION')shared.bomb={planted:false,site:'',x:0,y:0,plantProgress:0,defuseProgress:0,explodeAt:0,updatedAt:now};
+      if(mode==='EXPLOSION')shared.bomb={planted:false,site:'',x:0,y:0,plantProgress:0,defuseProgress:0,explodeAt:0,detonating:false,resolveAt:0,updatedAt:now};
       await this.sdk.update(this.ref(),{roster,state:shared,pickups:this.initialPickups(map,1,matchId),kills:null});
     }
     initialPickups(map,round,matchId){const out={};map.pickups.forEach((p,i)=>{out['orb-'+i]={active:true,respawnAt:0,round,matchId,type:p.type,x:p.x,y:p.y};});return out;}
@@ -113,8 +113,9 @@
       if(s.captureTime)a.captureTime={...s.captureTime};if(s.points)for(const pt of a.points)if(s.points[pt.id])Object.assign(pt,{owner:null,capturing:null},s.points[pt.id]);
       if(s.mode==='EXPLOSION'){
         a.attackTeam=s.round<=5?'RED':'BLUE';a.defendTeam=a.attackTeam==='RED'?'BLUE':'RED';
-        const b=s.bomb||{planted:false,site:'',x:0,y:0,plantProgress:0,defuseProgress:0,explodeAt:0};
-        a.bomb={...b,site:b.site||null,carrierTeam:a.attackTeam,explodeAt:b.explodeAt?a.time+Math.max(0,(b.explodeAt-this.now())/1000):0};
+        const b=s.bomb||{planted:false,site:'',x:0,y:0,plantProgress:0,defuseProgress:0,explodeAt:0,detonating:false,resolveAt:0};
+        a.bomb={...b,site:b.site||null,carrierTeam:a.attackTeam,explodeAt:b.explodeAt?a.time+Math.max(0,(b.explodeAt-this.now())/1000):0,resolveAt:b.resolveAt?a.time+Math.max(0,(b.resolveAt-this.now())/1000):0};
+        const blastKey=`${s.matchId}:${s.round}`;if(b.detonating&&this.lastBombBlastKey!==blastKey){this.lastBombBlastKey=blastKey;const left=Math.max(.05,(b.resolveAt-this.now())/1000);a.effects.push({type:'bomb-explosion',x:b.x,y:b.y,z:24,life:left,maxLife:2});a.emit('bombExploded',{team:a.attackTeam});}
       }
       if(s.result)a.result=s.result;
       if(a.state!==s.phase){a.setState(s.phase);if(s.phase==='MATCH_END'){a.cheats={aim:false,esp:false,noRecoil:false};a.emit('matchEnd',a.result||{});}}
@@ -217,8 +218,10 @@
           const attackers=alive.filter(([,r])=>r.team===attackTeam),defenders=alive.filter(([,r])=>r.team===defendTeam);
           const attackMembers=present.filter(([,r])=>r.team===attackTeam),defendMembers=present.filter(([,r])=>r.team===defendTeam);
           if(!attackMembers.length||!defendMembers.length){this.hostFinish(attackMembers.length?attackTeam:defendMembers.length?defendTeam:null,'상대 팀 연결 종료',true);return;}
-          if(!attackers.length||!defenders.length){this.hostFinish(attackers.length?attackTeam:defenders.length?defendTeam:null,'상대 팀 전멸');return;}
-          const a=this.arena,map=a.map,bomb={planted:false,site:'',x:0,y:0,plantProgress:0,defuseProgress:0,explodeAt:0,updatedAt:now,...s.bomb};
+          const a=this.arena,map=a.map,bomb={planted:false,site:'',x:0,y:0,plantProgress:0,defuseProgress:0,explodeAt:0,detonating:false,resolveAt:0,updatedAt:now,...s.bomb};
+          if(!defenders.length){this.hostFinish(attackTeam,'수비팀 전멸');return;}
+          if(!attackers.length&&!bomb.planted){this.hostFinish(defendTeam,'공격팀 전멸 · 폭탄 미설치');return;}
+          if(bomb.detonating){if(now>=bomb.resolveAt)this.hostFinish(attackTeam,'폭탄 폭발');return;}
           const dt=C.clamp((now-(bomb.updatedAt||now))/1000,0,.5),fresh=ready.filter(([id])=>now-(this.states[id].updatedAt||0)<2500),sites=map.bombSites||map.points.slice(0,2);
           const inRange=(group,point,radius)=>group.some(([id,r])=>{const st=this.states[id];return st?.alive&&Math.hypot(st.x-point.x,st.y-point.y)<radius&&C.los(map,st,point);});
           if(!bomb.planted){
@@ -227,7 +230,7 @@
             if(site){bomb.plantProgress=Math.min(4,(bomb.plantProgress||0)+dt);bomb.site=site.id||'A';if(bomb.plantProgress>=4){bomb.planted=true;bomb.x=site.x;bomb.y=site.y;bomb.explodeAt=now+35000;bomb.defuseProgress=0;}}
             else{bomb.plantProgress=Math.max(0,(bomb.plantProgress||0)-dt*1.5);if(!bomb.plantProgress)bomb.site='';}
           }else{
-            if(now>=bomb.explodeAt){this.hostFinish(attackTeam,'폭탄 폭발');return;}
+            if(now>=bomb.explodeAt){bomb.detonating=true;bomb.resolveAt=now+2000;bomb.updatedAt=now;this.changeState(v=>v.phase==='PLAYING'&&v.matchId===s.matchId&&v.round===s.round?{...v,bomb}:undefined);return;}
             const point={x:bomb.x,y:bomb.y,z:16},def=inRange(fresh.filter(([,r])=>r.team===defendTeam),point,72),atk=inRange(fresh.filter(([,r])=>r.team===attackTeam),point,72);
             if(def&&!atk){bomb.defuseProgress=Math.min(5,(bomb.defuseProgress||0)+dt);if(bomb.defuseProgress>=5){this.hostFinish(defendTeam,'폭탄 해체');return;}}
             else bomb.defuseProgress=Math.max(0,(bomb.defuseProgress||0)-dt*1.5);
@@ -263,7 +266,7 @@
       }else if(s.phase==='ROUND_END'&&now>=s.transitionAt){
         if(s.result?.match)this.changeState(v=>v.phase==='ROUND_END'&&v.round===s.round?{...v,phase:'MATCH_END',transitionAt:this.now()+7000}:undefined);
         else if(!this.hostBusy){
-          this.hostBusy=true;const round=s.round+1,map=C.MAPS.find(m=>m.id===s.mapId),stateRef=this.ref('state'),code=this.code;this.sdk.set(this.ref('pickups'),this.initialPickups(map,round,s.matchId)).then(()=>{if(this.code===code&&this.uid===this.hostId)return this.sdk.runTransaction(stateRef,v=>{if(v.phase!=='ROUND_END'||v.round!==s.round)return;const start=this.now(),next={...v,phase:'PLAYING',round,roundStartedAt:start,roundEndsAt:C.MODES[v.mode].limit?start+C.MODES[v.mode].limit*1000:0,transitionAt:0,result:null};if(v.mode==='EXPLOSION')next.bomb={planted:false,site:'',x:0,y:0,plantProgress:0,defuseProgress:0,explodeAt:0,updatedAt:start};return next;},{applyLocally:false});}).catch(e=>this.report(e)).finally(()=>{this.hostBusy=false;});
+          this.hostBusy=true;const round=s.round+1,map=C.MAPS.find(m=>m.id===s.mapId),stateRef=this.ref('state'),code=this.code;this.sdk.set(this.ref('pickups'),this.initialPickups(map,round,s.matchId)).then(()=>{if(this.code===code&&this.uid===this.hostId)return this.sdk.runTransaction(stateRef,v=>{if(v.phase!=='ROUND_END'||v.round!==s.round)return;const start=this.now(),next={...v,phase:'PLAYING',round,roundStartedAt:start,roundEndsAt:C.MODES[v.mode].limit?start+C.MODES[v.mode].limit*1000:0,transitionAt:0,result:null};if(v.mode==='EXPLOSION')next.bomb={planted:false,site:'',x:0,y:0,plantProgress:0,defuseProgress:0,explodeAt:0,detonating:false,resolveAt:0,updatedAt:start};return next;},{applyLocally:false});}).catch(e=>this.report(e)).finally(()=>{this.hostBusy=false;});
         }
       }else if(s.phase==='MATCH_END'&&now>=s.transitionAt)this.changeState(v=>v.phase==='MATCH_END'?{...v,phase:'LOBBY',transitionAt:0}:undefined);
     }

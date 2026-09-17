@@ -43,7 +43,7 @@
     if(['reload','empty','landing','pickup'].includes(type)&&data.entity?.isPlayer){audio.event(type);if(type==='pickup')notify(data.pickup.type==='health'?'HEALTH +10':'SHIELD +25');}
     if(type==='bombPlanted'){combatUntil=performance.now()+2200;dom['combat-message'].textContent=`BOMB PLANTED · SITE ${data.site}`;notify(`폭탄 설치 완료 · SITE ${data.site}`);}
     if(type==='bombDefused'){combatUntil=performance.now()+2200;dom['combat-message'].textContent='BOMB DEFUSED';notify('폭탄 해체 완료');}
-    if(type==='bombExploded'){combatUntil=performance.now()+2200;dom['combat-message'].textContent='BOMB DETONATED';notify('폭탄 폭발');}
+    if(type==='bombExploded'){renderer.shake=Math.max(renderer.shake,26);combatUntil=performance.now()+2200;dom['combat-message'].textContent='BOMB DETONATED';notify('폭탄 폭발 · 2초 후 결과');}
     if(type==='respawn'&&data.entity.isPlayer){clearInput();input.crouchToggle=false;audio.event('roundStart');}
   }
   function updateCheats(){document.querySelectorAll('[data-cheat]').forEach(b=>{const on=arena.cheats[b.dataset.cheat];b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));b.querySelector('span').textContent=on?'ON':'OFF';});}
