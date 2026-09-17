@@ -19,9 +19,11 @@
       n.start(t,Math.random()*.4);n.stop(t+duration);
     }
     fire(weapon,volume=1,pan=0){if(volume<.015)return;
-      const shapes=[[.13,2400,.36,105],[.12,3000,.40,160],[.13,1800,.13,440],[.28,1700,.67,72],[.12,3800,.18,310],[.19,2200,.47,85]];
-      const [duration,f,g,base]=shapes[weapon];this.burst(duration,f,g*volume,pan);this.tone(base,weapon===2?180:40,duration,.18*volume,weapon===4?'triangle':'sine');
-      if(weapon===4)this.tone(760,170,.16,.12*volume,'triangle');if(weapon===5)this.burst(.035,5600,.15*volume,pan,.065);
+      if(weapon===0){this.burst(.045,1200,.08*volume,pan);this.tone(210,120,.06,.08*volume,'triangle');return;}
+      if(weapon===5){this.burst(.06,900,.13*volume,pan);this.tone(150,70,.08,.08*volume,'triangle');return;}
+      const shapes={1:[.13,2400,.36,105],2:[.28,1700,.67,72],3:[.12,3800,.18,310],4:[.19,2200,.47,85]};
+      const [duration,f,g,base]=shapes[weapon];this.burst(duration,f,g*volume,pan);this.tone(base,40,duration,.18*volume,weapon===3?'triangle':'sine');
+      if(weapon===3)this.tone(760,170,.16,.12*volume,'triangle');if(weapon===4)this.burst(.035,5600,.15*volume,pan,.065);
     }
     event(type){
       if(type==='hit'){this.tone(970,650,.045,.12,'triangle');}

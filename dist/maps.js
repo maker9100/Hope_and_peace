@@ -45,7 +45,7 @@
     const map={...spec,width:30,height:27,grid,spawns:{BLUE:teamSpawns.BLUE.map(([x,y])=>p(x,y,{angle:-.64})),RED:teamSpawns.RED.map(([x,y])=>p(x,y,{angle:2.50}))},
       ffa:spec.ffa.map(([x,y])=>p(x,y)),points:spec.points.map(([id,x,y])=>p(x,y,{id,radius:96})),pickups:spec.orbs.map(([type,x,y])=>p(x,y,{type})),
       landmarks:spec.landmarks.map(([type,name,x,y,scale])=>p(x,y,{type,name,scale})),zones:spec.zones.map(([name,x,y])=>p(x,y,{name}))};
-    map.boss=p(3.5,23.5,{angle:-.6});map.hunters=map.ffa.slice(1).map(x=>({...x}));
+    map.boss=p(3.5,23.5,{angle:-.6});map.hunters=map.ffa.slice(1).map(x=>({...x}));map.bombSites=map.points.slice(0,2).map((x,i)=>({...x,id:String.fromCharCode(65+i),radius:104}));
     map.landmarkParts=map.landmarks.flatMap(landmarkParts);
     const all=[...map.ffa,...map.spawns.BLUE,...map.spawns.RED,map.boss,...map.hunters,...map.points,...map.pickups];
     for(const pos of all)if(!C.canStand(map,pos.x,pos.y,19))throw new Error(`Blocked authored coordinate: ${spec.name} (${pos.x/T},${pos.y/T})`);

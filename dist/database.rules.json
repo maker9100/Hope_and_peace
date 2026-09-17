@@ -17,7 +17,7 @@
             ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999999999999"
           },
           "schema": {
-            ".validate": "newData.val() === 2"
+            ".validate": "newData.val() === 3"
           },
           "mode": {
             ".validate": "newData.val() === 'RANDOM'"
@@ -87,7 +87,7 @@
             ".validate": "newData.val() === 'LOBBY' || newData.val() === 'PLAYING' || newData.val() === 'ROUND_END' || newData.val() === 'MATCH_END'"
           },
           "mode": {
-            ".validate": "newData.val() === 'TEAM' || newData.val() === 'SOLO' || newData.val() === 'INFINITY' || newData.val() === 'BOSS' || newData.val() === 'CAPTURE'"
+            ".validate": "newData.val() === 'TEAM' || newData.val() === 'EXPLOSION' || newData.val() === 'INFINITY' || newData.val() === 'BOSS' || newData.val() === 'CAPTURE'"
           },
           "round": {
             ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999"
@@ -109,7 +109,36 @@
           },
           "score": {
             "$id": {
-              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 7"
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10"
+            }
+          },
+          "bomb": {
+            "planted": {
+              ".validate": "newData.isBoolean()"
+            },
+            "site": {
+              ".validate": "newData.isString() && (newData.val() === '' || newData.val() === 'A' || newData.val() === 'B')"
+            },
+            "x": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1902"
+            },
+            "y": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1710"
+            },
+            "plantProgress": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 4"
+            },
+            "defuseProgress": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 5"
+            },
+            "explodeAt": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999999999999"
+            },
+            "updatedAt": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999999999999"
+            },
+            "$other": {
+              ".validate": false
             }
           },
           "captureTime": {
@@ -304,7 +333,7 @@
                 ".validate": "newData.isNumber() && newData.val() >= 0.001 && newData.val() <= 120"
               },
               "weapon": {
-                ".validate": "newData.isString() && newData.val().matches(/^(AR|PISTOL|KNIFE|SHOTGUN|CROSSBOW|MAC)$/)"
+                ".validate": "newData.isString() && newData.val().matches(/^(AR|KNIFE|SHOTGUN|CROSSBOW|MAC|GRENADE)$/)"
               },
               "round": {
                 ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 9999"

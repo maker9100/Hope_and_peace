@@ -6,24 +6,24 @@
   const MATCH_STATE = Object.freeze({ LOBBY:'LOBBY', PLAYING:'PLAYING', ROUND_END:'ROUND_END', MATCH_END:'MATCH_END' });
   const MODES = Object.freeze({
     TEAM:{ name:'TEAM ELIMINATION', icon:'◈', desc:'5 VS 5 · 7선승 · 2분 · 라운드 중 부활 없음', ffa:false, limit:120, respawn:0 },
-    SOLO:{ name:'SOLO ELIMINATION', icon:'◎', desc:'10인 개인전 · 7선승 · 2분 · 부활 없음', ffa:true, limit:120, respawn:0 },
+    EXPLOSION:{ name:'LOCALIZED EXPLOSION', icon:'✹', desc:'5 VS 5 · 폭탄 설치/해체 · 10라운드 · 5라운드 후 공수교대 · 부활 없음', ffa:false, limit:120, respawn:0 },
     INFINITY:{ name:'INFINITY ELIMINATION', icon:'∞', desc:'10인 개인전 · 5분 · 4초 부활 · 최다 킬 승리', ffa:true, limit:300, respawn:4 },
     BOSS:{ name:'KILLING BOSS', icon:'♜', desc:'1 VS 9 · YOU = BOSS · HP 2000 / Shield 1000 · 부활 없음', ffa:false, limit:0, respawn:0 },
     CAPTURE:{ name:'OBJECT CAPTURE', icon:'⚑', desc:'5 VS 5 · A/B/C · 2개 이상 점령 · 누적 45초 · 5초 부활', ffa:false, limit:0, respawn:5 }
   });
   const WEAPONS = Object.freeze([
-    { id:0,name:'AR',label:'ASSAULT RIFLE',auto:true,damage:26,mag:30,reload:2.1,interval:.105,range:1400,spread:.014,recoil:.027,kick:8 },
-    { id:1,name:'PISTOL',label:'SERVICE PISTOL',auto:false,damage:34,mag:12,reload:1.3,interval:.27,range:950,spread:.010,recoil:.036,kick:11 },
-    { id:2,name:'KNIFE',label:'COMBAT KNIFE',auto:false,damage:65,mag:Infinity,reload:0,interval:.48,range:82,spread:0,recoil:0,kick:0 },
-    { id:3,name:'SHOTGUN',label:'BREACH SHOTGUN',auto:false,damage:15,pellets:8,mag:6,reload:2.8,interval:.8,range:720,spread:.10,recoil:.09,kick:20 },
-    { id:4,name:'CROSSBOW',label:'TACTICAL CROSSBOW',auto:false,damage:110,mag:1,reload:2.2,interval:.85,range:1800,spread:.004,recoil:.045,kick:13,projectileSpeed:760 },
-    { id:5,name:'MAC',label:'MAC · BELT-FED MG',auto:true,damage:23,mag:80,reload:4.1,interval:.075,range:1500,spread:.028,recoil:.072,kick:17 }
+    { id:0,name:'KNIFE',label:'COMBAT KNIFE',kind:'melee',auto:false,damage:65,mag:Infinity,reload:0,interval:.48,range:82,spread:0,recoil:0,kick:0 },
+    { id:1,name:'AR',label:'ASSAULT RIFLE',kind:'firearm',auto:true,damage:26,mag:30,reload:2.1,interval:.105,range:1400,spread:.014,recoil:.027,kick:8 },
+    { id:2,name:'SHOTGUN',label:'BREACH SHOTGUN',kind:'firearm',auto:false,damage:15,pellets:8,mag:6,reload:2.8,interval:.8,range:720,spread:.10,recoil:.09,kick:20 },
+    { id:3,name:'CROSSBOW',label:'TACTICAL CROSSBOW',kind:'projectile',auto:false,damage:110,mag:1,reload:2.2,interval:.85,range:1800,spread:.004,recoil:.045,kick:13,projectileSpeed:760 },
+    { id:4,name:'MAC',label:'MAC · BELT-FED MG',kind:'firearm',auto:true,damage:23,mag:80,reload:4.1,interval:.075,range:1500,spread:.028,recoil:.072,kick:17 },
+    { id:5,name:'GRENADE',label:'FRAG GRENADE',kind:'grenade',auto:false,damage:115,mag:2,reload:0,interval:1.0,range:700,spread:0,recoil:0,kick:4,projectileSpeed:420,fuse:2.2,radius:190 }
   ]);
   const ROLES = [
-    {name:'RIFLE',weapon:0,range:400,aggression:.78,skill:.72},
-    {name:'BREACHER',weapon:3,range:160,aggression:.96,skill:.64},
-    {name:'MARKSMAN',weapon:4,range:650,aggression:.42,skill:.81},
-    {name:'SUPPRESSOR',weapon:5,range:440,aggression:.64,skill:.62},
+    {name:'RIFLE',weapon:1,range:400,aggression:.78,skill:.72},
+    {name:'BREACHER',weapon:2,range:160,aggression:.96,skill:.64},
+    {name:'MARKSMAN',weapon:3,range:650,aggression:.42,skill:.81},
+    {name:'SUPPRESSOR',weapon:4,range:440,aggression:.64,skill:.62},
     {name:'SKIRMISHER',weapon:1,range:280,aggression:.72,skill:.76}
   ];
   // Boss-only pacing. Damage, max health/shield, pickups and other modes stay shared.
@@ -138,7 +138,7 @@
     const role=ROLES[index%ROLES.length];
     return {id,name,team,isPlayer,isRemote:false,index,role,x:0,y:0,angle:0,cameraPitch:0,recoilPitch:0,radius:18,
       maxHp:boss?2000:100,maxShield:boss?1000:50,hp:boss?2000:100,shield:boss?1000:50,alive:true,
-      kills:0,deaths:0,wins:0,weapon:isPlayer?0:role.weapon,ammo:WEAPONS.map(w=>w.mag),cooldown:0,reloadLeft:0,reloadTotal:0,
+      kills:0,deaths:0,wins:0,weapon:isPlayer?1:role.weapon,ammo:WEAPONS.map(w=>w.mag),cooldown:0,reloadLeft:0,reloadTotal:0,
       jumpZ:0,jumpV:0,crouching:false,crouchBlend:0,landingKick:0,vx:0,vy:0,walkPhase:0,moveSpeed:0,
       lastDamage:-100,attackerId:null,attackerAt:-100,spawnProtectionUntil:0,respawnAt:0,fireFlash:0,weaponKick:0,shotSerial:0,
       ai:{path:[],pathAt:0,thinkAt:0,target:null,goal:null,lastX:0,lastY:0,stuck:0,strafe:index%2?1:-1,burstUntil:0,nextBurstAt:0,reactionUntil:0}};
@@ -147,14 +147,14 @@
     constructor(onEvent=()=>{}){
       this.onEvent=onEvent;this.state=MATCH_STATE.LOBBY;this.mode='TEAM';this.map=null;this.entities=[];this.time=0;
       this.cheats={aim:false,esp:false,noRecoil:false};this.score={BLUE:0,RED:0};this.round=0;this.projectiles=[];this.effects=[];this.feed=[];
-      this.captureTime={BLUE:0,RED:0};this.points=[];this.pickups=[];this.spectatorId=null;this.online=false;this.result=null;
+      this.captureTime={BLUE:0,RED:0};this.points=[];this.pickups=[];this.spectatorId=null;this.online=false;this.result=null;this.bombSites=[];this.bomb=null;this.attackTeam='RED';this.defendTeam='BLUE';
     }
     emit(type,data={}){this.onEvent(type,data);}
     setState(state){if(!Object.values(MATCH_STATE).includes(state))throw new Error('Invalid match state');this.state=state;this.emit('state',{state});}
     player(){return this.entities.find(e=>e.isPlayer);}
     viewpoint(){const p=this.player();return p?.alive?p:this.entities.find(e=>e.id===this.spectatorId&&e.alive)||p;}
     start(mode,map,nickname='PLAYER'){
-      if(!MODES[mode])throw new Error('Unknown mode');this.online=false;this.mode=mode;this.map=map;this.time=0;this.round=0;this.score={BLUE:0,RED:0};this.captureTime={BLUE:0,RED:0};this.feed=[];this.result=null;
+      if(!MODES[mode])throw new Error('Unknown mode');this.online=false;this.mode=mode;this.map=map;this.time=0;this.round=0;this.score={BLUE:0,RED:0};this.captureTime={BLUE:0,RED:0};this.feed=[];this.result=null;this.bombSites=[];this.bomb=null;this.attackTeam='RED';this.defendTeam='BLUE';
       this.entities=[createEntity('player',nickname,mode==='BOSS'?'BOSS':'BLUE',true,0,mode==='BOSS')];
       for(let i=1;i<10;i++){
         const team=MODES[mode].ffa?'SOLO':mode==='BOSS'?'HUNTERS':i<5?'BLUE':'RED';
@@ -164,6 +164,9 @@
     }
     beginRound(){
       this.round++;this.roundStart=this.time;this.roundEndsAt=MODES[this.mode].limit?this.time+MODES[this.mode].limit:Infinity;this.projectiles=[];this.effects=[];this.spectatorId=null;
+      this.attackTeam=this.mode==='EXPLOSION'?(this.round<=5?'RED':'BLUE'):'RED';this.defendTeam=this.attackTeam==='RED'?'BLUE':'RED';
+      this.bombSites=(this.map.bombSites||this.map.points.slice(0,2)).map((p,i)=>({...p,id:p.id||String.fromCharCode(65+i),radius:p.radius||96}));
+      this.bomb=this.mode==='EXPLOSION'?{planted:false,site:null,x:0,y:0,plantProgress:0,defuseProgress:0,explodeAt:0,carrierTeam:this.attackTeam}:null;
       this.points=this.map.points.map(p=>({...p,owner:null,control:0,contested:false,capturing:null}));
       this.pickups=this.map.pickups.map((p,i)=>({...p,id:'orb-'+i,active:true,respawnAt:0}));
       const count={};for(let i=0;i<this.entities.length;i++){
@@ -194,7 +197,7 @@
       return pool[Math.floor(Math.random()*pool.length)].p;
     }
     selectWeapon(e,id){if(!WEAPONS[id]||!e.alive)return;e.weapon=id;e.reloadLeft=0;e.reloadTotal=0;e.weaponKick=0;e.cooldown=Math.max(e.cooldown,.14);}
-    reload(e){const w=WEAPONS[e.weapon];if(!e.alive||e.weapon===2||e.reloadLeft>0||e.ammo[e.weapon]>=w.mag)return false;const duration=w.reload*(!this.online&&this.mode==='BOSS'&&e.isPlayer?BOSS_BALANCE.reloadScale:1);e.reloadLeft=duration;e.reloadTotal=duration;this.emit('reload',{entity:e,weapon:w});return true;}
+    reload(e){const w=WEAPONS[e.weapon];if(!e.alive||w.kind==='melee'||w.kind==='grenade'||e.reloadLeft>0||e.ammo[e.weapon]>=w.mag)return false;const duration=w.reload*(!this.online&&this.mode==='BOSS'&&e.isPlayer?BOSS_BALANCE.reloadScale:1);e.reloadLeft=duration;e.reloadTotal=duration;this.emit('reload',{entity:e,weapon:w});return true;}
     jump(e){if(!e?.alive||e.jumpZ>.05||e.jumpV!==0||e.crouching)return;e.jumpV=255;}
     height(e){return 70-24*e.crouchBlend;}
     eye(e){return 52-22*e.crouchBlend+e.jumpZ-e.landingKick;}
@@ -217,13 +220,13 @@
         if(e.ammo[e.weapon]===0&&e.reloadLeft===0&&e.cooldown<=0)this.reload(e);
       }
       this.updateProjectiles(dt);
-      if(!this.online){this.updatePickups();if(this.mode==='CAPTURE')this.updateCapture(dt);this.checkRules();}
+      if(!this.online){this.updatePickups();if(this.mode==='CAPTURE')this.updateCapture(dt);if(this.mode==='EXPLOSION')this.updateExplosion(dt);this.checkRules();}
       if(!this.player()?.alive&&(!this.entities.find(e=>e.id===this.spectatorId&&e.alive)))this.cycleSpectator();
     }
     updatePlayer(e,dt,input){
       if(this.cheats.noRecoil)e.recoilPitch=0;
       if(this.cheats.aim)this.aimAssist(e,dt,input);
-      const f=input.forward||0,s=input.strafe||0,n=Math.max(1,Math.hypot(f,s)),speed=205*(1-.48*e.crouchBlend);
+      const f=input.forward||0,s=input.strafe||0,n=Math.max(1,Math.hypot(f,s)),speed=205*(WEAPONS[e.weapon].kind==='melee'?1.15:1)*(1-.48*e.crouchBlend);
       const dx=(Math.cos(e.angle)*f-Math.sin(e.angle)*s)/n*speed,dy=(Math.sin(e.angle)*f+Math.cos(e.angle)*s)/n*speed;
       const control=1-Math.exp(-(e.jumpZ>0?3.4:19)*dt);e.vx=mix(e.vx,dx,control);e.vy=mix(e.vy,dy,control);
       this.moveEntity(e,e.vx*dt,e.vy*dt,dt);
@@ -239,7 +242,7 @@
     }
     moveEntity(e,dx,dy,dt){const ox=e.x,oy=e.y;moveCircle(this.map,e,dx,dy);const d=Math.hypot(e.x-ox,e.y-oy);e.moveSpeed=d/Math.max(dt,.001);e.walkPhase+=d*.037;}
     hunterFireReady(e){
-      if(this.online||this.mode!=='BOSS'||e.isPlayer||e.team!=='HUNTERS'||e.weapon===2)return true;
+      if(this.online||this.mode!=='BOSS'||e.isPlayer||e.team!=='HUNTERS'||WEAPONS[e.weapon].kind==='melee')return true;
       const ai=e.ai;
       if(ai.burstUntil>0&&this.time>=ai.burstUntil){
         ai.nextBurstAt=ai.burstUntil+BOSS_BALANCE.pauseMin+Math.random()*BOSS_BALANCE.pauseJitter;
@@ -269,6 +272,10 @@
           const useful=this.points.filter(p=>p.owner!==e.team||p.contested);
           goal=useful.length?useful[(e.index+(Math.floor(this.time/18)%2))%useful.length]:this.points[e.index%3];
         }
+        if(!goal&&this.mode==='EXPLOSION'){
+          if(this.bomb?.planted)goal={x:this.bomb.x,y:this.bomb.y};
+          else if(this.bombSites.length)goal=this.bombSites[(e.index+this.round)%this.bombSites.length];
+        }
         if(!goal){if(seen)goal=seen;else{enemies.sort((a,b)=>dist(e,a)-dist(e,b));goal=enemies[(e.index%3===0&&enemies.length>1)?1:0]||this.map.ffa[e.index];}}
         ai.goal=goal?{x:goal.x,y:goal.y}:null;
         if(goal&&(this.time>=ai.pathAt||ai.stuck>.65||!ai.path.length&&dist(e,goal)>75)){
@@ -277,7 +284,7 @@
       }
       const target=this.entities.find(t=>t.id===ai.target&&t.alive);const visible=target&&los(this.map,e,target);let mx=0,my=0;
       if(visible){
-        const d=dist(e,target),desiredWeapon=d<67?2:e.role.weapon;
+        const d=dist(e,target),desiredWeapon=d<67?0:e.role.weapon;
         if(e.weapon!==desiredWeapon&&e.reloadLeft===0)this.selectWeapon(e,desiredWeapon);
         let aimX=target.x,aimY=target.y;
         if(e.weapon===4){const lead=clamp(d/760,0,1.1);aimX+=target.vx*lead;aimY+=target.vy*lead;}
@@ -301,18 +308,19 @@
       }
       for(const other of this.entities){if(other===e||!other.alive)continue;const d=dist(e,other);if(d>0&&d<51){mx+=(e.x-other.x)/d*(51-d)/22;my+=(e.y-other.y)/d*(51-d)/22;}}
       if(ai.stuck>.30){mx+=Math.cos(e.angle+ai.strafe*Math.PI/2)*.85;my+=Math.sin(e.angle+ai.strafe*Math.PI/2)*.85;}
-      const len=Math.max(1,Math.hypot(mx,my)),speed=(visible?128:161)*(1-.45*e.crouchBlend);e.vx=mx/len*speed;e.vy=my/len*speed;
+      const len=Math.max(1,Math.hypot(mx,my)),speed=(visible?128:161)*(WEAPONS[e.weapon].kind==='melee'?1.15:1)*(1-.45*e.crouchBlend);e.vx=mx/len*speed;e.vy=my/len*speed;
       const ox=e.x,oy=e.y;this.moveEntity(e,e.vx*dt,e.vy*dt,dt);
       if(Math.hypot(e.x-ox,e.y-oy)<speed*dt*.12&&Math.hypot(mx,my)>.15)ai.stuck+=dt;else ai.stuck=Math.max(0,ai.stuck-dt*2);
       // No auto-jump and no teleport recovery.
     }
     fire(e,angle,pitch){
       const w=WEAPONS[e.weapon];if(!e.alive||this.state!==MATCH_STATE.PLAYING||e.cooldown>0||e.reloadLeft>0)return false;
-      if(e.ammo[e.weapon]<=0){this.emit('empty',{entity:e});this.reload(e);return false;}
-      e.ammo[e.weapon]--;e.cooldown=w.interval;e.fireFlash=.09;e.weaponKick=e.isPlayer&&this.cheats.noRecoil?0:w.kick;e.shotSerial++;
+      if(e.ammo[e.weapon]<=0){this.emit('empty',{entity:e});if(w.kind!=='grenade'&&w.kind!=='melee')this.reload(e);return false;}
+      if(Number.isFinite(e.ammo[e.weapon]))e.ammo[e.weapon]--;e.cooldown=w.interval;e.fireFlash=w.kind==='firearm'?.09:0;e.weaponKick=e.isPlayer&&this.cheats.noRecoil?0:w.kick;e.shotSerial++;
       if(!(e.isPlayer&&this.cheats.noRecoil)){e.recoilPitch=clamp(e.recoilPitch+w.recoil,0,.58);if(e.isPlayer&&w.recoil)e.angle=wrap(e.angle+(Math.random()-.5)*w.recoil*.38);}
       this.emit('fire',{entity:e,weapon:w,angle,pitch});
       const z=this.eye(e)-3;
+      if(w.kind==='grenade'){this.projectiles.push({id:e.id+'-'+e.shotSerial,owner:e.id,x:e.x,y:e.y,z:Math.max(20,z),vx:Math.cos(angle)*w.projectileSpeed,vy:Math.sin(angle)*w.projectileSpeed,vz:120+Math.tan(pitch)*w.projectileSpeed,life:w.fuse,damage:w.damage,weapon:e.weapon,grenade:true,radius:w.radius});return true;}
       if(w.projectileSpeed){this.projectiles.push({id:e.id+'-'+e.shotSerial,owner:e.id,x:e.x,y:e.y,z,vx:Math.cos(angle)*w.projectileSpeed,vy:Math.sin(angle)*w.projectileSpeed,vz:Math.tan(pitch)*w.projectileSpeed,life:2.8,damage:w.damage,weapon:e.weapon});return true;}
       const aggregated=new Map();
       for(let n=0;n<(w.pellets||1);n++){
@@ -320,23 +328,34 @@
         const wall=traceScene(this.map,{x:e.x,y:e.y,z},{x:e.x+Math.cos(a)*w.range,y:e.y+Math.sin(a)*w.range,z:z+Math.tan(p)*w.range}),bx=wall.x,by=wall.y,travel=w.range*wall.t;
         let hit=null,first=1;
         for(const t of this.entities){if(!t.alive||!enemy(e,t,this.mode))continue;
-          const k=segmentCircle(e.x,e.y,bx,by,t.x,t.y,t.radius+(e.weapon===2?16:0));
+          const k=segmentCircle(e.x,e.y,bx,by,t.x,t.y,t.radius+(w.kind==='melee'?16:0));
           if(k===null||k>=first)continue;const hz=z+Math.tan(p)*travel*k;
           if(hz<t.jumpZ-5||hz>t.jumpZ+this.height(t)+5)continue;
           hit=t;first=k;
         }
         if(hit)aggregated.set(hit,(aggregated.get(hit)||0)+w.damage);
-        this.effects.push({type:'tracer',x1:e.x,y1:e.y,z1:z,x:mix(e.x,bx,first),y:mix(e.y,by,first),z:z+Math.tan(p)*travel*first,life:.07,maxLife:.07,team:e.team});
+        if(w.kind!=='melee')this.effects.push({type:'tracer',x1:e.x,y1:e.y,z1:z,x:mix(e.x,bx,first),y:mix(e.y,by,first),z:z+Math.tan(p)*travel*first,life:.07,maxLife:.07,team:e.team});
         if(wall.hit&&!hit)this.effects.push({type:'spark',x:bx,y:by,z:wall.z,life:.20,maxLife:.20});
       }
       for(const [target,damage]of aggregated)this.damage(target,damage,e,w.name);
       return true;
     }
+    explodeGrenade(p,owner){
+      this.effects.push({type:'explosion',x:p.x,y:p.y,z:Math.max(10,p.z),life:.35,maxLife:.35});
+      if(!p.visualOnly)for(const t of this.entities){if(!t.alive||!owner||!enemy(owner,t,this.mode))continue;const d=Math.hypot(t.x-p.x,t.y-p.y);if(d>p.radius||!los(this.map,{x:p.x,y:p.y,z:Math.max(20,p.z)},t))continue;const raw=p.damage*Math.max(.18,1-d/p.radius);this.damage(t,raw,owner,'GRENADE');}
+      this.emit('explosion',{entity:owner,projectile:p});
+    }
     updateProjectiles(dt){
       const remaining=[];
       for(const p of this.projectiles){
-        p.life-=dt;if(p.life<=0)continue;
-        const bx=p.x+p.vx*dt,by=p.y+p.vy*dt,bz=p.z+p.vz*dt,owner=this.entities.find(e=>e.id===p.owner);
+        p.life-=dt;const owner=this.entities.find(e=>e.id===p.owner);
+        if(p.grenade){
+          const bx=p.x+p.vx*dt,by=p.y+p.vy*dt,bz=p.z+p.vz*dt,p2={x:bx,y:by,z:bz},wall=traceScene(this.map,p,p2);p.vz-=430*dt;
+          if(p.life<=0||wall.hit||bz<=3){if(wall.hit){p.x=wall.x;p.y=wall.y;p.z=Math.max(3,wall.z);}else{p.x=bx;p.y=by;p.z=Math.max(3,bz);}this.explodeGrenade(p,owner);continue;}
+          p.x=bx;p.y=by;p.z=bz;remaining.push(p);continue;
+        }
+        if(p.life<=0)continue;
+        const bx=p.x+p.vx*dt,by=p.y+p.vy*dt,bz=p.z+p.vz*dt;
         const wall=traceScene(this.map,p,{x:bx,y:by,z:bz});
         let limit=wall.t,hit=null;
         for(const t of this.entities){if(!t.alive||!owner||!enemy(owner,t,this.mode))continue;
@@ -384,7 +403,19 @@
       for(const team of ['BLUE','RED'])if(this.points.filter(p=>p.owner===team).length>=2)this.captureTime[team]=Math.min(45,this.captureTime[team]+dt);
       // Losing the majority pauses accumulation. It never resets either total.
     }
-    timeLeft(){return Math.max(0,this.roundEndsAt-this.time);}
+    updateExplosion(dt){
+      if(this.mode!=='EXPLOSION'||!this.bomb||this.state!==MATCH_STATE.PLAYING)return;
+      const alive=this.entities.filter(e=>e.alive),attackers=alive.filter(e=>e.team===this.attackTeam),defenders=alive.filter(e=>e.team===this.defendTeam);
+      if(!this.bomb.planted){
+        let site=null;for(const s of this.bombSites){const atk=attackers.some(e=>dist(e,s)<s.radius*.62&&los(this.map,e,s)),def=defenders.some(e=>dist(e,s)<s.radius*.62&&los(this.map,e,s));if(atk&&!def){site=s;break;}}
+        if(site){this.bomb.plantProgress=Math.min(4,this.bomb.plantProgress+dt);this.bomb.site=site.id;if(this.bomb.plantProgress>=4){this.bomb.planted=true;this.bomb.x=site.x;this.bomb.y=site.y;this.bomb.explodeAt=this.time+35;this.bomb.defuseProgress=0;this.emit('bombPlanted',{site:site.id,team:this.attackTeam});}}else{this.bomb.plantProgress=Math.max(0,this.bomb.plantProgress-dt*1.5);if(this.bomb.plantProgress===0)this.bomb.site=null;}
+      }else{
+        const bombPoint={x:this.bomb.x,y:this.bomb.y,z:16};const def=defenders.some(e=>dist(e,bombPoint)<72&&los(this.map,e,bombPoint)),atk=attackers.some(e=>dist(e,bombPoint)<72&&los(this.map,e,bombPoint));
+        if(def&&!atk){this.bomb.defuseProgress=Math.min(5,this.bomb.defuseProgress+dt);if(this.bomb.defuseProgress>=5){this.emit('bombDefused',{team:this.defendTeam});this.finishRound(this.defendTeam,'폭탄 해체');}}else this.bomb.defuseProgress=Math.max(0,this.bomb.defuseProgress-dt*1.5);
+        if(this.state===MATCH_STATE.PLAYING&&this.time>=this.bomb.explodeAt){this.effects.push({type:'explosion',x:this.bomb.x,y:this.bomb.y,z:24,life:.7,maxLife:.7});this.emit('bombExploded',{team:this.attackTeam});this.finishRound(this.attackTeam,'폭탄 폭발');}
+      }
+    }
+    timeLeft(){if(this.mode==='EXPLOSION'&&this.bomb?.planted)return Math.max(0,this.bomb.explodeAt-this.time);return Math.max(0,this.roundEndsAt-this.time);}
     checkRules(){
       if(this.state!==MATCH_STATE.PLAYING||this.online)return;
       const alive=this.entities.filter(e=>e.alive);
@@ -392,9 +423,10 @@
         const blue=alive.filter(e=>e.team==='BLUE'),red=alive.filter(e=>e.team==='RED');
         if(!blue.length||!red.length){this.finishRound(blue.length?'BLUE':red.length?'RED':null,'상대 팀 전멸');return;}
         if(this.timeLeft()<=0){let win=null;if(blue.length!==red.length)win=blue.length>red.length?'BLUE':'RED';else{const b=blue.reduce((n,e)=>n+e.hp+e.shield,0),r=red.reduce((n,e)=>n+e.hp+e.shield,0);if(Math.abs(b-r)>1e-6)win=b>r?'BLUE':'RED';}this.finishRound(win,'시간 종료 · 생존 인원 / HP + Shield 판정');}
-      }else if(this.mode==='SOLO'){
-        if(alive.length<=1){this.finishRound(alive[0]?.id||null,'최후의 생존자');return;}
-        if(this.timeLeft()<=0){const sorted=[...alive].sort((a,b)=>b.hp+b.shield-a.hp-a.shield),a=sorted[0],b=sorted[1];this.finishRound(a&&(!b||Math.abs(a.hp+a.shield-b.hp-b.shield)>1e-6)?a.id:null,'시간 종료 · HP + Shield 판정');}
+      }else if(this.mode==='EXPLOSION'){
+        const attackers=alive.filter(e=>e.team===this.attackTeam),defenders=alive.filter(e=>e.team===this.defendTeam);
+        if(!attackers.length||!defenders.length){this.finishRound(attackers.length?this.attackTeam:defenders.length?this.defendTeam:null,'상대 팀 전멸');return;}
+        if(!this.bomb?.planted&&Math.max(0,this.roundEndsAt-this.time)<=0){this.finishRound(this.defendTeam,'설치 시간 종료');return;}
       }else if(this.mode==='INFINITY'){
         if(this.timeLeft()<=0){const ranked=[...this.entities].sort((a,b)=>b.kills-a.kills);this.finishRound(ranked[0].kills===ranked[1].kills?null:ranked[0].id,'5분 종료 · 최다 킬',true);}
       }else if(this.mode==='BOSS'){
@@ -407,7 +439,7 @@
     finishRound(winner,reason,match=false){
       if(this.state!==MATCH_STATE.PLAYING)return;
       if(winner&&this.mode==='TEAM'){this.score[winner]++;match=this.score[winner]>=7;}
-      if(winner&&this.mode==='SOLO'){const e=this.entities.find(e=>e.id===winner);e.wins++;match=e.wins>=7;}
+      if(winner&&this.mode==='EXPLOSION'){this.score[winner]=(this.score[winner]||0)+1;if(this.round>=10){match=true;const roundWinner=winner,b=this.score.BLUE||0,r=this.score.RED||0;winner=b===r?null:b>r?'BLUE':'RED';reason=`10라운드 종료 · ${roundWinner} 라운드 승리`;}}
       const name=this.entities.find(e=>e.id===winner)?.name||winner;
       this.result={winner,name:name||'DRAW',reason,match,draw:!winner};this.transitionAt=this.time+3.5;this.setState(MATCH_STATE.ROUND_END);this.emit('roundEnd',this.result);
     }
